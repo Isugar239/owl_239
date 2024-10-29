@@ -5,7 +5,11 @@ from sklearn.model_selection import train_test_split #type: ignore
 from keras.models import Sequential #type: ignore
 from keras.layers import Dense, Embedding, LSTM #type: ignore
 from tensorflow.keras.preprocessing.text import Tokenizer #type: ignore
-from keras.preprocessing.sequence import pad_sequences           #type: ignore
+from keras.preprocessing.sequence import pad_sequences           #type: ignore\
+import os
+
+
+
 TF_ENABLE_ONEDNN_OPTS = 0
 bot = telebot.TeleBot('7935579912:AAHV6o-3WeKVJIqixeMy0VPEljtZE3l7J3Y')
 data = {
@@ -31,13 +35,17 @@ y = df['label'].map(labels_mapping).values
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
 model = Sequential()
-model.add(Embedding(input_dim=len(tokenizer.word_index) + 1, output_dim=10, input_length=X.shape[1]))
-model.add(LSTM(10))
-model.add(Dense(5, activation='softmax'))
-
-model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-model.fit(X_train, y_train, epochs=50, batch_size=1, verbose=1)
-
+if os.path.exists('model1.keras'):
+    model.load('model1.keras')  
+    model.add(Dense(5, activation='softmax'))
+    model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+else:
+    model.add(Embedding(input_dim=len(tokenizer.word_index) + 1, output_dim=10, input_length=X.shape[1]))
+    model.add(LSTM(10))
+    model.add(Dense(5, activation='softmax'))
+    model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+    model.fit(X_train, y_train, epochs=50, batch_size=1, verbose=1)
+    model.save('model1.keras')  # Сохранение весов модели
 accuracy = model.evaluate(X_test, y_test)
 print(f'Точность модели: {accuracy[1] * 100:.2f}%')
 
