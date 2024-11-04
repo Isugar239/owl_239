@@ -133,6 +133,13 @@ else:
                     return list(labels_mapping.keys())[np.argmax(pred)]
     while flag:
         quest = input()
+<<<<<<< HEAD
+        try:          
+            result = classify_query(quest)
+            print(result)
+        except KeyboardInterrupt:
+            flag = False
+=======
         if quest == 'files':
             print(ff(input()))
         else:
@@ -141,4 +148,5 @@ else:
                 print(result)
             except KeyboardInterrupt:
                 flag = False
+>>>>>>> 65adb4fa99ce2d3f7e59bc63e7e14b8952a9426c
             
