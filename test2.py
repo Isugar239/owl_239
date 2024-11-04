@@ -1,15 +1,24 @@
 from transformers import pipeline
 
-# Загрузка модели
-qa_pipeline = pipeline("question-answering")
+# Загрузка модели для понимания смысла текста
+model_name = 'DeepPavlov/rubert-base-cased'
+nlp = pipeline('text-classification', model=model_name)
+text = "Ваш текст здесь"
 
-# Чтение файла
-with open('Broshyura_Uvazhaemaya_shkola_25_avgusta.docx', 'r', encoding='utf-8') as file:
-    context = file.read()
+def nastroy(text):
+    result = nlp(text)
+    result = result[0]
+    if result['label']=='LABEL_0':
+        emoji = 'Negative'
+    elif result['label']=='LABEL_1':
+        emoji = 'Neutral'
+    else:
+        emoji = 'Positive'
+    return emoji, result['score']
+flag = True
+while flag:
+    try:
+        print(nastroy(input()))
+    except KeyboardInterrupt:
+        flag = False
 
-# Задаем вопрос
-question = "Какова основная тема текста?"
-
-# Получаем ответ
-result = qa_pipeline(question=question, context=context)
-print(result['answer'])
