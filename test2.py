@@ -1,16 +1,13 @@
 from transformers import pipeline
-
-# Загрузка модели для понимания смысла текста
-model_name = 'DeepPavlov/rubert-base-cased'
-nlp = pipeline('text-classification', model=model_name)
-text = "Ваш текст здесь"
+model = pipeline(model="seara/rubert-tiny2-russian-sentiment")
+print(model("Привет, ты мне нравишься!"))
 
 def nastroy(text):
-    result = nlp(text)
+    result = model(text)
     result = result[0]
-    if result['label']=='LABEL_0':
+    if result['label']=='negative':
         emoji = 'Negative'
-    elif result['label']=='LABEL_1':
+    elif result['label']=='neutral':
         emoji = 'Neutral'
     else:
         emoji = 'Positive'
