@@ -41,18 +41,10 @@ else:
     model.fit(X_train, y_train, epochs=50, batch_size=1, verbose=1)
     model.save('model1.keras')  # Сохранение весов модели
 accuracy = model.evaluate(X_test, y_test)
-print(f'Точность модели: {accuracy[1] * 100:.2f}%')
 
 model = pipeline(model="seara/rubert-tiny2-russian-sentiment")
 def emotion(text):
     result = model(text)
-    result = result[0]
-    if result['label']=='negative':
-        emoji = 'Negative'
-    elif result['label']=='neutral':
-        emoji = 'Neutral'
-    else:
-        emoji = 'Positive'
-    return emoji, result['score']
+    return emoji, result[0]['label']
 def answer(text):
     pass
