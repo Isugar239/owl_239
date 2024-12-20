@@ -14,9 +14,12 @@ mypath = "<путь_к_файлам_с_примерами>"
 
 
 def main():
+    with open('api.txt') as f:
+        global api
+        api=f.read()
     sdk = YCloudML(
         folder_id="b1g76obevh0ia28dnl00",
-        auth="AQVN1s7HadfmF9eWOj0twj3zve5MX-S9QrWrbVLJ",
+        auth=api,
     )
 
     paths = pathlib.Path(mypath).iterdir()
