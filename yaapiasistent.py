@@ -9,8 +9,10 @@ from yandex_cloud_ml_sdk.search_indexes import (
     StaticIndexChunkingStrategy,
     TextSearchIndexType,
 )
-
-mypath = "<путь_к_файлам_с_примерами>"
+''' обращение к классификатору, получение относительного пути типа:
+    files\местоположение\
+'''
+mypath = "rag"
 
 
 def main():
