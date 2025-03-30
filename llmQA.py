@@ -1,14 +1,12 @@
-from transformers import pipeline
+from transformers import pipeline, AutoTokenizer
 import time
+import torch
 import os
 os.environ["HF_HOME"] = "/home/olegg/sova"
 
 timer =  time.perf_counter()
 
-messages = [
-    {"role": "system", "content": "Ты чат бот, который долен отвечать на вопросы о лицее. "},
-    {"role": "user", "content": "Who are you?"},
-]
+
 context = ''' В центре Санкт-Петербург между двумя улицами – Фурштадтской и Кирочной
 располагается Физико-математический лицей № 239. Он является одним из элитных учебных
 заведений нашего города и имеет богатую историю, как историю собственно 239 школы г.
@@ -43,14 +41,30 @@ context = ''' В центре Санкт-Петербург между двум�
 опубликованных, так и архивных источников. К архивным источникам, прежде всего, следует
 отнести материалы музея Физико-математического лицея № 239, собранные, бережно хранимые
 и любезно предоставленные директором музея Татьяной Витальевной Любченко. '''
-universalQA = pipeline("text-generation", model="tiiuae/falcon-7b-instruct", max_new_tokens=1024)
+model_id = "microsoft/Phi-4-mini-instruct"
+tokenizer = AutoTokenizer.from_pretrained(model_id)
+universalQA = pipeline(
+    "text-generation",
+    model=model_id,
+    tokenizer=tokenizer,
+    torch_dtype=torch.bfloat16, 
+    device_map="auto",  
+)
 
 while True:
     try:
         question = input() 
+        prompt = f"основываясь на этих данных: :\n{context}\n\n дай только ответ на этот вопрос: {question}\nОтвет:"
+        
+        answerQA = universalQA(
+            prompt,
+            max_new_tokens=2048,
+            do_sample=True,
+            temperature=0.7,
+            top_k=50,
+            top_p=0.95
+        )
 
-        prompt = f'''Контекст:\n{context}\n\nВопрос: {question}\nОтвет:'''
-        answerQA = universalQA(prompt, max_new_tokens=256, do_sample=True, temperature=0.7, top_k=50, top_p=0.95)
 
         print("Ответ:", answerQA[0]["generated_text"])
 
