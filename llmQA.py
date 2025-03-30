@@ -1,5 +1,8 @@
 from transformers import pipeline
 import time
+import os
+os.environ["HF_HOME"] = "/home/olegg/sova"
+
 timer =  time.perf_counter()
 
 messages = [
@@ -40,23 +43,16 @@ context = ''' В центре Санкт-Петербург между двум�
 опубликованных, так и архивных источников. К архивным источникам, прежде всего, следует
 отнести материалы музея Физико-математического лицея № 239, собранные, бережно хранимые
 и любезно предоставленные директором музея Татьяной Витальевной Любченко. '''
-universalQA = pipeline("text-generation", model="mistralai/Mistral-Nemo-Instruct-2407",max_new_tokens=1024)
-question = "что В центре Санкт-Петербург между двумя улицами – Фурштадтской и Кирочной"
-# with open("./data.txt", "r", encoding='utf-8') as f:
-#     context += f.read()
+universalQA = pipeline("text-generation", model="tiiuae/falcon-7b-instruct", max_new_tokens=1024)
+
 while True:
     try:
-        timer =  time.perf_counter()
-        messages[1]["content"] = f''' Есть контекст: \n
-        "---------------------\n"
-        "{context}"
-        "\n---------------------\n"
-        "Основывая свой ответ на нем, в противном случае скажи что не знаешь, ответь на вопрос : {question}\n"'''
-        prompt = universalQA.tokenizer.apply_chat_template(messages,tokenize=False, add_generation_prompt=True)
+        question = input() 
+
+        prompt = f'''Контекст:\n{context}\n\nВопрос: {question}\nОтвет:'''
         answerQA = universalQA(prompt, max_new_tokens=256, do_sample=True, temperature=0.7, top_k=50, top_p=0.95)
-        print(answerQA[0]["generated_text"])
-        print("time=",  time.perf_counter()-timer)
-        question = input()
-        
+
+        print("Ответ:", answerQA[0]["generated_text"])
+
     except Exception as e:
-        print(f'unknown error {e}')
+        print(f'Ошибка: {e}')
