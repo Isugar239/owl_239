@@ -53,8 +53,8 @@ universalQA = pipeline(
 
 while True:
     try:
-        question = input() 
-        prompt = f"основываясь на этих данных: :\n{context}\n\n дай только ответ на этот вопрос: {question}\nОтвет:"
+        question = input()
+        prompt = f"Если не знаешь - открыто скажи это. основываясь ТОЛЬКО на этих данных: :\n{context}\n\n дай только ответ на этот вопрос: {question}\nОтвет:"
         timer =  time.perf_counter()
         answerQA = universalQA(
             prompt,
@@ -66,8 +66,9 @@ while True:
         )
 
         answer = answerQA[0]["generated_text"].replace(prompt, "")
-        print("Ответ:", )
-        print(timer-time.perf_counter())
-       
+        print("Ответ:", answer)
+        print(time.perf_counter()-timer)
+
     except Exception as e:
         print(f'Ошибка: {e}')
+
