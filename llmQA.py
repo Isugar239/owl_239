@@ -2,7 +2,6 @@ from transformers import pipeline, AutoTokenizer
 import time
 import torch
 import os
-os.environ["HF_HOME"] = "/home/olegg/sova"
 
 timer =  time.perf_counter()
 
@@ -43,6 +42,7 @@ context = ''' В центре Санкт-Петербург между двум�
 и любезно предоставленные директором музея Татьяной Витальевной Любченко. '''
 model_id = "microsoft/Phi-4-mini-instruct"
 tokenizer = AutoTokenizer.from_pretrained(model_id)
+print(torch.cuda.current_device())
 universalQA = pipeline(
     "text-generation",
     model=model_id,
@@ -55,7 +55,7 @@ while True:
     try:
         question = input() 
         prompt = f"основываясь на этих данных: :\n{context}\n\n дай только ответ на этот вопрос: {question}\nОтвет:"
-        
+        timer =  time.perf_counter()
         answerQA = universalQA(
             prompt,
             max_new_tokens=2048,
@@ -65,8 +65,9 @@ while True:
             top_p=0.95
         )
 
-
-        print("Ответ:", answerQA[0]["generated_text"])
-
+        answer = answerQA[0]["generated_text"].replace(prompt, "")
+        print("Ответ:", )
+        print(timer-time.perf_counter())
+       
     except Exception as e:
         print(f'Ошибка: {e}')
