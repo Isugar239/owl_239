@@ -2,7 +2,6 @@ from transformers import pipeline, AutoTokenizer
 import time
 from sentence_transformers import SentenceTransformer, util
 import torch
-import os
 
 timer =  time.perf_counter()
 
