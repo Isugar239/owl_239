@@ -17,22 +17,13 @@ universalQA = pipeline(
     torch_dtype=torch.bfloat16,
     device_map="auto",
 )
-splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-chunks = splitter.split_text(context)
+# splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+# chunks = splitter.split_text(context)
 
 while True:
     try:
         question = input()
-        question_embedding = embedding_model.encode(question, convert_to_tensor=True)
 
-        cos_scores = util.cos_sim(question_embedding, chunk_embeddings)[0]
-
-        top_k = min(3, len(chunks))
-        top_results = torch.topk(cos_scores, k=top_k)
-
-        relevant_chunks = [chunks[i] for i in top_results[1]]
-
-        context = "\n\n".join(relevant_chunks)
         prompt = f"Если не знаешь - открыто скажи это. основываясь ТОЛЬКО на этих данных: :\n{context}\n\n дай только ответ на этот вопрос: {question}\nОтвет:"
         timer =  time.perf_counter()
         answerQA = universalQA(
