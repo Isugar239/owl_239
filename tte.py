@@ -10,7 +10,7 @@ from typing import Optional, List, Tuple
 from datasets import Dataset
 import matplotlib.pyplot as plt
 
-EMBEDDING_MODEL_NAME = "ai-forever/ruElectra-small"
+EMBEDDING_MODEL_NAME = "ai-forever/ruElectra-sall"
 MARKDOWN_SEPARATORS = [
     "\n#{1,6} ",
     "```\n",
