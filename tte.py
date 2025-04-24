@@ -6,8 +6,6 @@ from typing import Optional, List, Tuple
 from datasets import Dataset
 import matplotlib.pyplot as plt
 from langchain.docstore.document import Document as LangchainDocument
-import matplotlib
-matplotlib.use('TkAgg')
 pd.set_option("display.max_colwidth", None) 
 with open("data.txt", "r", encoding="utf-8") as f:
         text = f.read()
