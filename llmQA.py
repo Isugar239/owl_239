@@ -5,7 +5,10 @@ import torch
 import sounddevice as sd
 import numpy as np
 import wave
+import vlc
 from TTS.api import TTS
+import pygame
+pygame.init()
 file_path="speaker.wav"
 tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
 
@@ -42,10 +45,10 @@ def record_audio(filename="output.wav", duration=10, samplerate=46200):
     return filename
 
 
-audio_path = record_audio()
+# audio_path = record_audio()
 
-result = pipe(audio_path)
-print(result["text"])
+# result = pipe(audio_path)
+# print(result["text"])
 timer =  time.perf_counter()
 
 model_id = "microsoft/Phi-4-mini-instruct"
@@ -100,7 +103,7 @@ while True:
     try:
         question = input()
 
-        prompt = f"Если не знаешь - открыто скажи это. основываясь ТОЛЬКО на этих данных: :\n{context}\n\n дай только ответ на этот вопрос: {question}\nОтвет:"
+        prompt = f"Если не знаешь - открыто скажи это. Все цифры заменяй словами. основываясь ТОЛЬКО на этих данных: :\n{context}\n\n дай только ответ на этот вопрос: {question}\nОтвет:"
         timer =  time.perf_counter()
         answerQA = universalQA(
             prompt,
@@ -116,7 +119,9 @@ while True:
                 file_path="output.wav",
                 speaker_wav=file_path,
             language="ru")
-
+        p = pygame.mixer.Sound('output.wav')
+        #re.send()
+        p.play()
         print("Ответ:", answer)
         print(time.perf_counter()-timer)
 
