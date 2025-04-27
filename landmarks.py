@@ -13,9 +13,13 @@ model = load_model('mp_hand_gesture')
 
 classNames = ['okay', 'peace', 'thumbs up', 'thumbs down', 'call me', 'stop', 'rock', 'live long', 'fist', 'smile']
 print(classNames)
-
+i = 0
 cap = cv2.VideoCapture(0)
 while True:
+  if i == 1:
+       i = 0
+       continue
+  i += 1
   # Read each frame from the webcam
   _, frame = cap.read()
   x , y, c = frame.shape
