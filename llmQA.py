@@ -115,7 +115,7 @@ def init():
 
 def answer(tts, pipe, universalQA):
     try:
-        ser.write("2")
+        ser.write(b"2")
         audio_path = record_audio()
         result = pipe(audio_path, generate_kwargs={"language": "russian"})
         question = result['text']
@@ -125,14 +125,14 @@ def answer(tts, pipe, universalQA):
         answerQA = universalQA(messages, **generation_args)
         answer = answerQA[0]["generated_text"]
         print("Ответ:", answer)
-        ser.write("3")
+        ser.write(b"3")
         tts.tts_to_file(text=answer,
                 file_path="output.wav",
                 speaker_wav=file_path,
             language="ru")
         p = pygame.mixer.Sound('output.wav')
         p.play()
-        ser.write("4")
+        ser.write(b"4")
     except Exception as e:
         print(f'Ошибка {e}')
 
@@ -177,7 +177,7 @@ def main():
             # detect face
             face_results = face_detection.process(framergb)
             if face_results.detections:
-                ser.write("1")
+                ser.write(b"1")
                 for detection in face_results.detections:
                     bboxC = detection.location_data.relative_bounding_box
                     ih, iw, _ = frame.shape
@@ -185,7 +185,7 @@ def main():
                     cv2.rectangle(frame, (x1, y1), (x1 + w, y1 + h), (0, 255, 0), 2)
                     cv2.putText(frame, 'Face', (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
             else:
-                ser.write("0")
+                ser.write(b"0")
             # Show prediction 
             cv2.putText(frame, className, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
             cv2.imshow("Gesture and Face Recognition", frame)
