@@ -8,36 +8,34 @@ import wave
 import scipy
 from TTS.api import TTS
 import pygame
-import requests
-import os
-import socket
+import serial
 import cv2
 import numpy as np
 import mediapipe as mp
-from tensorflow.keras.models import load_model
+from tensorflow.keras.models import load_model # type: ignore
 import tensorflow as tf
+#init apc220
+port = '/dev/ttyUSB0'
+baud_rate = 9600
+timeout = 1
+ser = serial.Serial(port, baud_rate, timeout=timeout)
 
-# Initialize pygame for audio
+
 pygame.init()
-
-# Configure TensorFlow to use GPU if available
+lasttime = time.perf_counter
 physical_devices = tf.config.list_physical_devices('GPU')
 if physical_devices:
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
-# Initialize MediaPipe Face Detection and Hands
 mp_face_detection = mp.solutions.face_detection
 mpHands = mp.solutions.hands
 hands = mpHands.Hands(max_num_hands=1, min_detection_confidence=0.7)
 mpDraw = mp.solutions.drawing_utils
 
-# Load the hand gesture recognition model
 gesture_model = load_model('mp_hand_gesture')
 
-# Load class names for hand gestures
 classNames = ['okay', 'peace', 'thumbs up', 'thumbs down', 'call me', 'stop', 'rock', 'live long', 'fist', 'smile']
 
-# Initialize voice assistant components
 torch.random.manual_seed(0)
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
@@ -81,7 +79,7 @@ generation_args = {
 }
 file_path="speaker.wav"
 
-def initialize_voice_assistant():
+def init():
     tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
     tts.to(device)
     
@@ -115,55 +113,49 @@ def initialize_voice_assistant():
     
     return tts, pipe, universalQA
 
-def process_voice_command(tts, pipe, universalQA):
+def answer(tts, pipe, universalQA):
     try:
+        ser.write("2")
         audio_path = record_audio()
         result = pipe(audio_path, generate_kwargs={"language": "russian"})
         question = result['text']
-        print("Распознанный вопрос:", question)
+        print(question)
 
         messages.append({"role": "user", "content": question})
         answerQA = universalQA(messages, **generation_args)
         answer = answerQA[0]["generated_text"]
         print("Ответ:", answer)
-        
+        ser.write("3")
         tts.tts_to_file(text=answer,
                 file_path="output.wav",
                 speaker_wav=file_path,
             language="ru")
         p = pygame.mixer.Sound('output.wav')
         p.play()
-        
+        ser.write("4")
     except Exception as e:
-        print(f'Ошибка обработки голосовой команды: {e}')
+        print(f'Ошибка {e}')
 
 def main():
-    # Initialize voice assistant
-    tts, pipe, universalQA = initialize_voice_assistant()
+    tts, pipe, universalQA = init()
     
-    # Start capturing video from the webcam
     cap = cv2.VideoCapture(0)
     
-    # Initialize face detection
     with mp_face_detection.FaceDetection(min_detection_confidence=0.7) as face_detection:
         while True:
-            # Read each frame from the webcam
-            success, frame = cap.read()
-            if not success:
+            _, frame = cap.read()
+            if not _:
                 break
-
-            # Flip the frame vertically
+            
             frame = cv2.flip(frame, 1)
             x, y, c = frame.shape
 
-            # Convert the frame to RGB
             framergb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
             # Get hand landmark prediction
             result = hands.process(framergb)
             className = ''
 
-            # Post-process the hand landmarks result
             if result.multi_hand_landmarks:
                 landmarks = []
                 for handslms in result.multi_hand_landmarks:
@@ -171,27 +163,30 @@ def main():
                         lmx = int(lm.x * x)
                         lmy = int(lm.y * y)
                         landmarks.append([lmx, lmy])
-                    # Drawing landmarks on frames
+                    # Drawing landmarks 
                     mpDraw.draw_landmarks(frame, handslms, mpHands.HAND_CONNECTIONS)
                     prediction = gesture_model.predict([landmarks])
                     classID = np.argmax(prediction)
                     className = classNames[classID]
                     
-                    # If thumbs up gesture detected, start voice command processing
-                    if className == 'thumbs up':
-                        process_voice_command(tts, pipe, universalQA)
+                    # If thumbs up 
+                    if className == 'thumbs up' and time.perf_counter-lasttime>2:
+                        answer(tts, pipe, universalQA)
+                        lasttime = time.perf_counter
 
-            # Perform face detection
+            # detect face
             face_results = face_detection.process(framergb)
             if face_results.detections:
+                ser.write("1")
                 for detection in face_results.detections:
                     bboxC = detection.location_data.relative_bounding_box
                     ih, iw, _ = frame.shape
                     x1, y1, w, h = int(bboxC.xmin * iw), int(bboxC.ymin * ih), int(bboxC.width * iw), int(bboxC.height * ih)
                     cv2.rectangle(frame, (x1, y1), (x1 + w, y1 + h), (0, 255, 0), 2)
                     cv2.putText(frame, 'Face', (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-
-            # Show the prediction on the frame
+            else:
+                ser.write("0")
+            # Show prediction 
             cv2.putText(frame, className, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
             cv2.imshow("Gesture and Face Recognition", frame)
 
@@ -203,4 +198,4 @@ def main():
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    main()й
+    main()
