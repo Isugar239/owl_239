@@ -1,11 +1,9 @@
 import torch
-from transformers import pipeline, AutoTokenizer, AutoModelForSpeechSeq2Seq, AutoProcessor, AutoModel, AutoModelForCausalLM
+from transformers import pipeline, AutoTokenizer, AutoModelForSpeechSeq2Seq, AutoProcessor, AutoModelForCausalLM
 import time
-from sentence_transformers import SentenceTransformer
 import sounddevice as sd
 import numpy as np
 import wave
-import scipy
 from TTS.api import TTS
 import pygame
 import serial
@@ -22,7 +20,6 @@ ser = serial.Serial(port, baud_rate, timeout=timeout)
 
 
 pygame.init()
-lasttime = time.perf_counter
 physical_devices = tf.config.list_physical_devices('GPU')
 if physical_devices:
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
@@ -53,22 +50,13 @@ def record_audio(filename="voice.wav", duration=5, samplerate=46200):
         wf.writeframes(audio_data.tobytes())
     return filename
 
-context = ''' В центре Санкт-Петербург между двумя улицами – Фурштадтской и Кирочной
-    располагается Физико-математический лицей № 239. Он является одним из элитных учебных
-    заведений нашего города и имеет богатую историю, как историю собственно 239 школы г.
-    Ленинграда, так и историю того здания, в котором он размещается – историю одного из
-    знаменитейших не только в дореволюционном Санкт-Петербурге, но и во всей России училища
-    Святой Анны (Анненшуле).
-    Возраст лицея, а в прошлом школы № 239, более 80 лет. Она была организована в 1918 г.
-    и первоначально располагалась в "доме со львами" на углу Адмиралтейского проспекта и
-    Исаакиевской площади. Школа несколько раз меняла свой адрес и в 1975 г. вселилась в здание
-    по адресу Кирочная, 8а, которое ранее было построено для училища Св. Анны. Училище это в
-    1986 г. отмечало свое 250-летие.  '''
+context = ''' Президентский Физико математический лицей 239 распологается в центре санкт петербурга между фруштатской и кирочной улиц. Школа была основана в 1918 году, на данный момент ей 107 лет.
+Директор лицей - Максим Яковлевич Пратусеевич, '''
 
 messages = [
     {"role": "system", "content": f"Ты ИИ ассистент для ответов на вопросы по слеудющему тексту \n{context}\n. Если не знаешь - не пытайся угадать, признайся что не знаешь. Все цифры заменяй словами в нужном падеже. В конце ответа не ставь точку. Если в вопросе есть слово похожее на лицей, считай что это оно. основываясь ТОЛЬКО на данных, переданных в запросе дай только ответ ТОЛЬКО на этот вопрос"},
-    {"role": "user", "content": "Кто директор музей 239? В конце ответа не ставь точку"},
-    {"role": "assistant", "content": "Татьяна Витальевна Любченко"},
+    {"role": "user", "content": "Кто директор 239? В конце ответа не ставь точку"},
+    {"role": "assistant", "content": "Максим Яковлевич Пратусеевич"},
 ]
 
 model_path = "microsoft/Phi-4-mini-instruct"
@@ -89,6 +77,8 @@ def init():
     )
     modelSR.to(device)
     processorSR = AutoProcessor.from_pretrained(model_id)
+    tokenizerLLM = AutoTokenizer.from_pretrained(model_path)
+
     pipe = pipeline(
         "automatic-speech-recognition",
         model=modelSR,
@@ -104,7 +94,6 @@ def init():
         torch_dtype=torch.float16,
         trust_remote_code=True,
     )
-    tokenizerLLM = AutoTokenizer.from_pretrained(model_path)
     universalQA = pipeline(
         "text-generation",
         model=modelQA,
@@ -115,7 +104,7 @@ def init():
 
 def answer(tts, pipe, universalQA):
     try:
-        ser.write(b"2")
+        ser.write("2".encode('ascii'))
         audio_path = record_audio()
         result = pipe(audio_path, generate_kwargs={"language": "russian"})
         question = result['text']
@@ -123,21 +112,24 @@ def answer(tts, pipe, universalQA):
 
         messages.append({"role": "user", "content": question})
         answerQA = universalQA(messages, **generation_args)
+        messages.remove({"role": "user", "content": question})
+        import pprint
+        pprint.pprint(messages)
         answer = answerQA[0]["generated_text"]
         print("Ответ:", answer)
-        ser.write(b"3")
+        ser.write("3".encode('ascii'))
         tts.tts_to_file(text=answer,
                 file_path="output.wav",
                 speaker_wav=file_path,
             language="ru")
         p = pygame.mixer.Sound('output.wav')
         p.play()
-        ser.write(b"4")
     except Exception as e:
         print(f'Ошибка {e}')
 
 def main():
     tts, pipe, universalQA = init()
+    lasttime = time.perf_counter()
     
     cap = cv2.VideoCapture(0)
     
@@ -147,7 +139,7 @@ def main():
             if not _:
                 break
             
-            frame = cv2.flip(frame, 1)
+            frame = cv2.flip(frame, 0)
             x, y, c = frame.shape
 
             framergb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -168,16 +160,16 @@ def main():
                     prediction = gesture_model.predict([landmarks])
                     classID = np.argmax(prediction)
                     className = classNames[classID]
-                    
+                
                     # If thumbs up 
-                    if className == 'thumbs up' and time.perf_counter-lasttime>2:
+                    if className == 'thumbs up' and time.perf_counter()-lasttime>2 and not pygame.mixer.get_busy():
                         answer(tts, pipe, universalQA)
-                        lasttime = time.perf_counter
+                        lasttime = time.perf_counter()
 
             # detect face
             face_results = face_detection.process(framergb)
             if face_results.detections:
-                ser.write(b"1")
+                ser.write("0".encode('ascii'))
                 for detection in face_results.detections:
                     bboxC = detection.location_data.relative_bounding_box
                     ih, iw, _ = frame.shape
@@ -185,7 +177,7 @@ def main():
                     cv2.rectangle(frame, (x1, y1), (x1 + w, y1 + h), (0, 255, 0), 2)
                     cv2.putText(frame, 'Face', (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
             else:
-                ser.write(b"0")
+                ser.write("5".encode('ascii'))
             # Show prediction 
             cv2.putText(frame, className, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
             cv2.imshow("Gesture and Face Recognition", frame)
