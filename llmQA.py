@@ -109,7 +109,7 @@ def init():
 
 def answer(tts, pipe, universalQA):
     try:
-        ser.write("2".encode('ascii'))
+        ser.write("4".encode('ascii'))
         audio_path = record_audio()
         result = pipe(audio_path, generate_kwargs={"language": "russian"})
         question = result['text']
@@ -122,7 +122,7 @@ def answer(tts, pipe, universalQA):
         pprint.pprint(messages)
         answer = answerQA[0]["generated_text"]
         print("Ответ:", answer)
-        ser.write("3".encode('ascii'))
+        ser.write("5".encode('ascii'))
         tts.tts_to_file(text=answer,
                 file_path="output.wav",
                 speaker_wav=file_path,
@@ -175,15 +175,24 @@ def main():
             # detect face
             face_results = face_detection.process(framergb)
             if face_results.detections:
-                ser.write("0".encode('ascii'))
+                wmax = 0
                 for detection in face_results.detections:
                     bboxC = detection.location_data.relative_bounding_box
                     ih, iw, _ = frame.shape
                     x1, y1, w, h = int(bboxC.xmin * iw), int(bboxC.ymin * ih), int(bboxC.width * iw), int(bboxC.height * ih)
+                    if w > wmax:
+                        wmax = w
                     cv2.rectangle(frame, (x1, y1), (x1 + w, y1 + h), (0, 255, 0), 2)
                     cv2.putText(frame, 'Face', (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                if wmax > 700:
+                    ser.write("3".encode('ascii'))
+                elif vmax < 500:
+                    ser.write("1".encode('ascii'))
+                else:
+                    ser.write("2".encode('ascii'))
+                    
             else:
-                ser.write("5".encode('ascii'))
+                ser.write("6".encode('ascii'))
             # Show prediction 
             cv2.putText(frame, className, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
             cv2.imshow("Gesture and Face Recognition", frame)
