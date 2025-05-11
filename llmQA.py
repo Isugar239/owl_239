@@ -137,7 +137,8 @@ def main():
     lasttime = time.perf_counter()
     
     cap = cv2.VideoCapture(0)
-    
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
     with mp_face_detection.FaceDetection(min_detection_confidence=0.7) as face_detection:
         while True:
             _, frame = cap.read()
