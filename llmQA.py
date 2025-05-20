@@ -12,15 +12,23 @@ import numpy as np
 import mediapipe as mp
 from tensorflow.keras.models import load_model # type: ignore
 import tensorflow as tf
+from types import SimpleNamespace
 import os
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 #init apc220
-port = '/dev/ttyUSB0'
-baud_rate = 9600
-timeout = 1
-ser = serial.Serial(port, baud_rate, timeout=timeout)
 
+HAVE_CAM = 1 # отладка с камерой \ без
+HAVE_BT = 1 # отладка с блютузом \ без
+HAVE_APC = 1 # отладка с apc serial
 
+if HAVE_APC:
+    port = '/dev/ttyUSB0'
+    baud_rate = 9600
+    timeout = 1
+    ser = serial.Serial(port, baud_rate, timeout=timeout)
+# else:
+#     ser = SimpleNamespace()
+#     ser.write(*args) = lambda self: "No apc"
 pygame.init()
 physical_devices = tf.config.list_physical_devices('GPU')
 if physical_devices:
@@ -52,23 +60,24 @@ def record_audio(filename="voice.wav", duration=5, samplerate=46200):
         wf.writeframes(audio_data.tobytes())
     return filename
 
-context = ''' Президентский Физико математический лицей 239 распологается в центре санкт петербурга между фруштатской и кирочной улиц. Школа была основана в 1918 году, на данный момент ей 107 лет.
-Директор лицей - Максим Яковлевич Пратусеевич. Там преподают такие предметы как: Алгебра, геометрия, иностранный язык, информатика, история, литература, русский язык, физика, Химия, биология, география, физкультура, искусство, обществознание, ОБЖ.
+context = '''Я выступала на многих соревнованиях в числе которых Робокап 2025
+ Президентский Физико математический лицей 239 распологается в центре санкт петербурга между фруштатской и кирочной улиц. Там я нахожусь прямо сейчас. Школа была основана в 1918 году, на данный момент ей 107 лет.
+Директор лицея - Максим Яковлевич Пратусеевич. Там преподают такие предметы как: Алгебра, геометрия, иностранный язык, информатика, история, литература, русский язык, физика, Химия, биология, география, физкультура, искусство, обществознание, ОБЖ.
 В лицее есть классы с 5 по 11, по несколько паралелей в каждом. Есть химбио классы и еще по многим направлениям. В конце года есть переводные экзамены. Средней бал ЕГЭ у выпускников по всем предметам около 60 баллов.
 В 239 много кружков на самые разные направления, включая матцентр, физцентр, робоцентр и т п, суммарно около 100. Поэтому в среднем 30-40 человек выпускаются с возможностью поступления БВИ.
-Сейчас я нахожусь на соревнованиях Робокап 2025, в категории: творческая старшая. Проходят они в городе томск. '''
+ '''
 
 messages = [
-    {"role": "system", "content": f"Ты ИИ ассистент для ответов на вопросы по слеудющему тексту \n{context}\n. Если не знаешь - не пытайся угадать, признайся что не знаешь. Все цифры заменяй словами в нужном падеже. В конце ответа не ставь точку. Если в вопросе есть слово похожее на лицей, считай что это оно. основываясь ТОЛЬКО на данных, переданных в запросе дай только ответ ТОЛЬКО на этот вопрос"},
+    {"role": "system", "content": f"Ты сова, которая отвечает на вопросы по слеудющему тексту \n{context}\n. Если не знаешь - не пытайся угадать, признайся что не знаешь. Все цифры заменяй словами в нужном падеже. В конце ответа не ставь точку. Если в вопросе есть слово похожее на лицей, считай что это оно. основываясь ТОЛЬКО на данных, переданных в запросе дай только ответ ТОЛЬКО на этот вопрос"},
     {"role": "user", "content": "Кто директор 239? В конце ответа не ставь точку"},
     {"role": "assistant", "content": "Максим Яковлевич Пратусеевич"},       
     {"role": "user", "content": "Сколько человек в 11 классе?"},
-    {"role": "assistant", "content": "Данной информации у меня нету"},       
+    {"role": "assistant", "content": "Данной информации у меня нет"},       
 ]
 
 model_path = "microsoft/Phi-4-mini-instruct"
 generation_args = {
-    "max_new_tokens": 512,
+    "max_new_tokens": 256,
     "return_full_text": False,
     "do_sample": False,
 }
@@ -124,24 +133,29 @@ def answer(tts, pipe, universalQA):
         pprint.pprint(messages)
         answer = answerQA[0]["generated_text"]
         print("Ответ:", answer)
-        ser.write("5".encode('ascii'))
         tts.tts_to_file(text=answer,
                 file_path="output.wav",
                 speaker_wav=file_path,
             language="ru")
+        ser.write("5".encode('ascii'))
+        
         p = pygame.mixer.Sound('output.wav')
         p.play()
+        while pygame.mixer.get_busy():
+            time.sleep(0.1)
+        print("end")
     except Exception as e:
         print(f'Ошибка {e}')
 
-def main():
+def main():  
     tts, pipe, universalQA = init()
     lasttime = time.perf_counter()
+    lastface = time.perf_counter()
     
     cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-    with mp_face_detection.FaceDetection(min_detection_confidence=0.7) as face_detection:
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+    with mp_face_detection.FaceDetection(min_detection_confidence=0.8) as face_detection:
         while True:
             _, frame = cap.read()
             if not _:
@@ -176,25 +190,36 @@ def main():
 
             # detect face
             face_results = face_detection.process(framergb)
-            if face_results.detections:
+            if face_results.detections: 
                 wmax = 0
+                h1max = 0
                 for detection in face_results.detections:
                     bboxC = detection.location_data.relative_bounding_box
                     ih, iw, _ = frame.shape
                     x1, y1, w, h = int(bboxC.xmin * iw), int(bboxC.ymin * ih), int(bboxC.width * iw), int(bboxC.height * ih)
                     if w > wmax:
                         wmax = w
+                        h1max = x1
                     cv2.rectangle(frame, (x1, y1), (x1 + w, y1 + h), (0, 255, 0), 2)
                     cv2.putText(frame, 'Face', (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                if wmax > 700:
+                med = wmax/2+h1max
+                if med > 400:
                     ser.write("3".encode('ascii'))
-                elif vmax < 500:
+                    print(3, med)
+                elif med < 300:
                     ser.write("1".encode('ascii'))
+                    print(1, med)
                 else:
                     ser.write("2".encode('ascii'))
-                    
-            else:
-                ser.write("6".encode('ascii'))
+                    print(2, med)
+                lastface = time.perf_counter()
+            else: 
+                if time.perf_counter()-lastface > 2:
+                    ser.write("6".encode('ascii'))
+                    print(6)
+                else:
+                    ser.write("2".encode('ascii'))
+
             # Show prediction 
             cv2.putText(frame, className, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
             cv2.imshow("Gesture and Face Recognition", frame)
