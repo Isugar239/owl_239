@@ -14,6 +14,7 @@ from tensorflow.keras.models import load_model # type: ignore
 import tensorflow as tf
 from types import SimpleNamespace
 import os
+from pydub import AudioSegment
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 #init apc220
 
@@ -83,6 +84,12 @@ generation_args = {
 }
 file_path="speaker.wav"
 
+def addUwu(pathToSound):
+    song = AudioSegment.from_wav(pathToSound)
+    song2 = AudioSegment.from_wav("UWU.wav")
+    song3 = song + song2
+    song3.export("output.wav", format="wav")
+
 def init():
     tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
     tts.to(device)
@@ -121,11 +128,30 @@ def init():
 def answer(tts, pipe, universalQA):
     try:
         ser.write("4".encode('ascii'))
+        p = pygame.mixer.Sound('listen.wav')
+        p.play()
+        while pygame.mixer.get_busy():
+            time.sleep(0.1)
         audio_path = record_audio()
-        result = pipe(audio_path, generate_kwargs={"language": "russian"})
+        
+        with torch.no_grad(): 
+            result = pipe(audio_path, generate_kwargs={"language": "russian"})
         question = result['text']
+        torch.cuda.empty_cache()
         print(question)
-
+        tts.tts_to_file(text=f"Вы спросили {question}",
+                file_path="output.wav",
+                speaker_wav=file_path,
+            language="ru")
+        p = pygame.mixer.Sound('output.wav')
+        p.play()
+        while pygame.mixer.get_busy():
+            time.sleep(0.1)
+        p = pygame.mixer.Sound('UWU.wav')
+        p.play()
+        if(input()=="n"):
+            answer(tts, pipe, universalQA)
+            return 0
         messages.append({"role": "user", "content": question})
         answerQA = universalQA(messages, **generation_args)
         messages.remove({"role": "user", "content": question})
@@ -143,6 +169,8 @@ def answer(tts, pipe, universalQA):
         p.play()
         while pygame.mixer.get_busy():
             time.sleep(0.1)
+        p = pygame.mixer.Sound('UWU.wav')
+        p.play()
         print("end")
     except Exception as e:
         print(f'Ошибка {e}')
