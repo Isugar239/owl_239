@@ -1,11 +1,12 @@
 import torch
-from transformers import pipeline, AutoTokenizer, AutoModelForSpeechSeq2Seq, AutoProcessor, AutoModelForCausalLM
+from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSpeechSeq2Seq, AutoProcessor, BertTokenizerFast, AutoModelForCausalLM, TFBertModel
 import time
 import sounddevice as sd
 import numpy as np
 import wave
 from TTS.api import TTS
 import pygame
+import random
 import serial
 import cv2
 import numpy as np
@@ -14,6 +15,8 @@ from tensorflow.keras.models import load_model # type: ignore
 import tensorflow as tf
 from types import SimpleNamespace
 import os
+import nltk
+from nltk.sentiment import SentimentIntensityAnalyzer
 from pydub import AudioSegment
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 #init apc220
@@ -21,7 +24,7 @@ os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 HAVE_CAM = 1 # отладка с камерой \ без
 HAVE_BT = 1 # отладка с блютузом \ без
 HAVE_APC = 1 # отладка с apc serial
-
+last_phrase = 0
 if HAVE_APC:
     port = '/dev/ttyUSB0'
     baud_rate = 9600
@@ -34,6 +37,10 @@ pygame.init()
 physical_devices = tf.config.list_physical_devices('GPU')
 if physical_devices:
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
+def contains_negative_words(text):
+    negative_words = ["нет", "не", "никак", "вряд ли", "никогда", "ни за что", "неа", "отрицательно", "исключено", "не думаю", "сомневаюсь"]
+    text_lower = text.lower()
+    return any(neg in text_lower for neg in negative_words)
 
 mp_face_detection = mp.solutions.face_detection
 mpHands = mp.solutions.hands
@@ -47,10 +54,31 @@ classNames = ['okay', 'peace', 'thumbs up', 'thumbs down', 'call me', 'stop', 'r
 torch.random.manual_seed(0)
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-
-def record_audio(filename="voice.wav", duration=5, samplerate=46200):
+def record_audio(filename="voice.wav", duration=5, samplerate=44100, device_name=None):
+    print("Доступные устройства:")
+    devices = sd.query_devices()
+    for i, device in enumerate(devices):
+        print(f"{i}: {device['name']}")
+    
+    device_id = None
+    if device_name:
+        for i, device in enumerate(devices):
+            if device_name.lower() in device['name'].lower():
+                device_id = i
+                print(f"Выбрано устройство: {device['name']}")
+                break
+    
+    if device_id is None:
+        print("Устройство не найдено, используется устройство по умолчанию")
+    
     print("rec start")
-    audio_data = sd.rec(int(samplerate * duration), samplerate=samplerate, channels=1, dtype=np.int16)
+    audio_data = sd.rec(
+        int(samplerate * duration),
+        samplerate=samplerate,
+        channels=1,
+        dtype=np.int16,
+        device=device_id
+    )
     sd.wait()
     print("rec end")
     
@@ -66,6 +94,12 @@ context = '''Я выступала на многих соревнованиях 
 Директор лицея - Максим Яковлевич Пратусеевич. Там преподают такие предметы как: Алгебра, геометрия, иностранный язык, информатика, история, литература, русский язык, физика, Химия, биология, география, физкультура, искусство, обществознание, ОБЖ.
 В лицее есть классы с 5 по 11, по несколько паралелей в каждом. Есть химбио классы и еще по многим направлениям. В конце года есть переводные экзамены. Средней бал ЕГЭ у выпускников по всем предметам около 60 баллов.
 В 239 много кружков на самые разные направления, включая матцентр, физцентр, робоцентр и т п, суммарно около 100. Поэтому в среднем 30-40 человек выпускаются с возможностью поступления БВИ.
+Периодами промежуточной аттестации в V–IX классах являются четверти, а в X–XI классах — полугодия. 
+К основным видам промежуточной аттестации в ФМЛ № 239 относятся:  экзамен зачёт контрольная работа интегрированный проект с использованием ИКТ  сочинение изложение диктант с грамматическим заданием тестовая работа собеседование исследовательская работа
+Экзамены чаще всего в мае-июне, аттестации в конце года в декабре-январе.
+Праздник Последнего звонка — всегда грустный праздник. Ведь приходится расставаться со школой, с её удивительным миром. И, уходя, каждый 11 класс прощается со школой: выходит на сцену, чтобы ещё раз сказать спасибо за все. 
+Форма была введена в 2007 году. А родилась идея ввести форму после того, как на одном из очередных награждений за победы в городских олимпиадах на сцену вышла команда 239: в рваных футболках, страшных джинсах, лохматые, непричёсанные. 
+А в 2012 году была придумана ещё одна традиция 239 — Золотой директорский галстук. Его можно получить как высшую награду за отличную учёбу.
  '''
 
 messages = [
@@ -78,7 +112,7 @@ messages = [
 
 model_path = "microsoft/Phi-4-mini-instruct"
 generation_args = {
-    "max_new_tokens": 256,
+    "max_new_tokens": 512,
     "return_full_text": False,
     "do_sample": False,
 }
@@ -91,18 +125,17 @@ def addUwu(pathToSound):
     song3.export("output.wav", format="wav")
 
 def init():
-    tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
-    tts.to(device)
-    
-    model_id = "openai/whisper-large-v3-turbo"
-    modelSR = AutoModelForSpeechSeq2Seq.from_pretrained(
-        model_id, torch_dtype=torch.float16, low_cpu_mem_usage=True, use_safetensors=True
-    )
-    modelSR.to(device)
-    processorSR = AutoProcessor.from_pretrained(model_id)
-    tokenizerLLM = AutoTokenizer.from_pretrained(model_path)
-
-    pipe = pipeline(
+    if HAVE_BT:
+        tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
+        tts.to(device)
+        
+        model_id = "openai/whisper-large-v3-turbo"
+        modelSR = AutoModelForSpeechSeq2Seq.from_pretrained(
+            model_id, torch_dtype=torch.float16, low_cpu_mem_usage=True, use_safetensors=True
+        )
+        modelSR.to(device)
+        processorSR = AutoProcessor.from_pretrained(model_id)
+        pipe = pipeline(
         "automatic-speech-recognition",
         model=modelSR,
         tokenizer=processorSR.tokenizer,
@@ -110,7 +143,12 @@ def init():
         torch_dtype=torch_dtype,
         device=device,
     )
-    
+    else:
+        tts = 1
+        modelSR = 2
+        pipe = 3
+    tokenizerLLM = AutoTokenizer.from_pretrained(model_path)
+
     modelQA = AutoModelForCausalLM.from_pretrained(
         model_path,
         device_map="cuda:0",
@@ -132,10 +170,9 @@ def answer(tts, pipe, universalQA):
         p.play()
         while pygame.mixer.get_busy():
             time.sleep(0.1)
-        audio_path = record_audio()
+        audio_path = record_audio(device_name="sysdefault")
         
-        with torch.no_grad(): 
-            result = pipe(audio_path, generate_kwargs={"language": "russian"})
+        result = pipe(audio_path, generate_kwargs={"language": "russian"})
         question = result['text']
         torch.cuda.empty_cache()
         print(question)
@@ -143,22 +180,35 @@ def answer(tts, pipe, universalQA):
                 file_path="output.wav",
                 speaker_wav=file_path,
             language="ru")
+        torch.cuda.empty_cache()
+        
         p = pygame.mixer.Sound('output.wav')
         p.play()
         while pygame.mixer.get_busy():
             time.sleep(0.1)
         p = pygame.mixer.Sound('UWU.wav')
         p.play()
-        if(input()=="n"):
-            answer(tts, pipe, universalQA)
-            return 0
+        while pygame.mixer.get_busy():
+            time.sleep(0.1)
+            
+        audio_path = record_audio(duration=3)
+        result = pipe(audio_path, generate_kwargs={"language": "russian"})
+        user_response = result['text']
+        print(user_response)
+            
+        if contains_negative_words(user_response.replace(".", "")):  # If sentiment is negative or neutral
+            return
+        ser.write("2".encode('ascii'))
         messages.append({"role": "user", "content": question})
         answerQA = universalQA(messages, **generation_args)
         messages.remove({"role": "user", "content": question})
-        import pprint
-        pprint.pprint(messages)
+    
         answer = answerQA[0]["generated_text"]
+        torch.cuda.empty_cache()
+
         print("Ответ:", answer)
+        if not HAVE_BT:
+            return
         tts.tts_to_file(text=answer,
                 file_path="output.wav",
                 speaker_wav=file_path,
@@ -176,6 +226,7 @@ def answer(tts, pipe, universalQA):
         print(f'Ошибка {e}')
 
 def main():  
+    global last_phrase
     tts, pipe, universalQA = init()
     lasttime = time.perf_counter()
     lastface = time.perf_counter()
@@ -245,8 +296,22 @@ def main():
                 if time.perf_counter()-lastface > 2:
                     ser.write("6".encode('ascii'))
                     print(6)
-                else:
-                    ser.write("2".encode('ascii'))
+
+                if(round(time.perf_counter(), 1)-round(time.perf_counter()) == 0):
+                    if(random.randint(0, 100) in range(58, 60)):
+                        if not pygame.mixer.get_busy():
+                            verdikt = random.randint(1, 4)
+                            if verdikt == last_phrase:
+                                verdikt = (verdikt+1)%4+1
+                            last_phrase=verdikt
+                            p = pygame.mixer.Sound(f'promote{verdikt}.wav')
+                            p.play()
+                            while pygame.mixer.get_busy():
+                                time.sleep(0.1)
+                            p = pygame.mixer.Sound('UWU.wav')
+                            p.play()
+                            while pygame.mixer.get_busy():
+                                time.sleep(0.1)
 
             # Show prediction 
             cv2.putText(frame, className, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
