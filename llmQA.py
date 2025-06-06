@@ -13,11 +13,26 @@ import numpy as np
 import mediapipe as mp
 from tensorflow.keras.models import load_model # type: ignore
 import tensorflow as tf
-from types import SimpleNamespace
 import os
-import nltk
-from nltk.sentiment import SentimentIntensityAnalyzer
 from pydub import AudioSegment
+from langchain.vectorstores import FAISS
+from langchain_community.embeddings import HuggingFaceEmbeddings
+EMBEDDING_MODEL_NAME = "ai-forever/sbert_large_nlu_ru"
+
+# Load the embedding model (must be the same one used for creation)
+embedding_model = HuggingFaceEmbeddings(
+    model_name=EMBEDDING_MODEL_NAME,
+    model_kwargs={"device": "cpu"},
+    encode_kwargs={"normalize_embeddings": True},
+)
+
+# Load the saved index
+KNOWLEDGE_VECTOR_DATABASE = FAISS.load_local(
+    folder_path="znania",
+    embeddings=embedding_model,
+    allow_dangerous_deserialization=True  # Needed for security reasons
+)
+
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 #init apc220
 
@@ -54,31 +69,9 @@ classNames = ['okay', 'peace', 'thumbs up', 'thumbs down', 'call me', 'stop', 'r
 torch.random.manual_seed(0)
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-def record_audio(filename="voice.wav", duration=5, samplerate=44100, device_name=None):
-    print("Доступные устройства:")
-    devices = sd.query_devices()
-    for i, device in enumerate(devices):
-        print(f"{i}: {device['name']}")
-    
-    device_id = None
-    if device_name:
-        for i, device in enumerate(devices):
-            if device_name.lower() in device['name'].lower():
-                device_id = i
-                print(f"Выбрано устройство: {device['name']}")
-                break
-    
-    if device_id is None:
-        print("Устройство не найдено, используется устройство по умолчанию")
-    
+def record_audio(filename="voice.wav", duration=5, samplerate=46200, device_name=""):
     print("rec start")
-    audio_data = sd.rec(
-        int(samplerate * duration),
-        samplerate=samplerate,
-        channels=1,
-        dtype=np.int16,
-        device=device_id
-    )
+    audio_data = sd.rec(int(samplerate * duration), samplerate=samplerate, channels=1, dtype=np.int16)
     sd.wait()
     print("rec end")
     
@@ -89,30 +82,10 @@ def record_audio(filename="voice.wav", duration=5, samplerate=44100, device_name
         wf.writeframes(audio_data.tobytes())
     return filename
 
-context = '''Я выступала на многих соревнованиях в числе которых Робокап 2025
- Президентский Физико математический лицей 239 распологается в центре санкт петербурга между фруштатской и кирочной улиц. Там я нахожусь прямо сейчас. Школа была основана в 1918 году, на данный момент ей 107 лет.
-Директор лицея - Максим Яковлевич Пратусеевич. Там преподают такие предметы как: Алгебра, геометрия, иностранный язык, информатика, история, литература, русский язык, физика, Химия, биология, география, физкультура, искусство, обществознание, ОБЖ.
-В лицее есть классы с 5 по 11, по несколько паралелей в каждом. Есть химбио классы и еще по многим направлениям. В конце года есть переводные экзамены. Средней бал ЕГЭ у выпускников по всем предметам около 60 баллов.
-В 239 много кружков на самые разные направления, включая матцентр, физцентр, робоцентр и т п, суммарно около 100. Поэтому в среднем 30-40 человек выпускаются с возможностью поступления БВИ.
-Периодами промежуточной аттестации в V–IX классах являются четверти, а в X–XI классах — полугодия. 
-К основным видам промежуточной аттестации в ФМЛ № 239 относятся:  экзамен зачёт контрольная работа интегрированный проект с использованием ИКТ  сочинение изложение диктант с грамматическим заданием тестовая работа собеседование исследовательская работа
-Экзамены чаще всего в мае-июне, аттестации в конце года в декабре-январе.
-Праздник Последнего звонка — всегда грустный праздник. Ведь приходится расставаться со школой, с её удивительным миром. И, уходя, каждый 11 класс прощается со школой: выходит на сцену, чтобы ещё раз сказать спасибо за все. 
-Форма была введена в 2007 году. А родилась идея ввести форму после того, как на одном из очередных награждений за победы в городских олимпиадах на сцену вышла команда 239: в рваных футболках, страшных джинсах, лохматые, непричёсанные. 
-А в 2012 году была придумана ещё одна традиция 239 — Золотой директорский галстук. Его можно получить как высшую награду за отличную учёбу.
- '''
-
-messages = [
-    {"role": "system", "content": f"Ты сова, которая отвечает на вопросы по слеудющему тексту \n{context}\n. Если не знаешь - не пытайся угадать, признайся что не знаешь. Все цифры заменяй словами в нужном падеже. В конце ответа не ставь точку. Если в вопросе есть слово похожее на лицей, считай что это оно. основываясь ТОЛЬКО на данных, переданных в запросе дай только ответ ТОЛЬКО на этот вопрос"},
-    {"role": "user", "content": "Кто директор 239? В конце ответа не ставь точку"},
-    {"role": "assistant", "content": "Максим Яковлевич Пратусеевич"},       
-    {"role": "user", "content": "Сколько человек в 11 классе?"},
-    {"role": "assistant", "content": "Данной информации у меня нет"},       
-]
 
 model_path = "microsoft/Phi-4-mini-instruct"
 generation_args = {
-    "max_new_tokens": 512,
+    "max_new_tokens": 182,
     "return_full_text": False,
     "do_sample": False,
 }
@@ -164,16 +137,19 @@ def init():
     return tts, pipe, universalQA
 
 def answer(tts, pipe, universalQA):
-    try:
-        ser.write("4".encode('ascii'))
+    # try:
+        
         p = pygame.mixer.Sound('listen.wav')
         p.play()
         while pygame.mixer.get_busy():
             time.sleep(0.1)
+        ser.write("4".encode('ascii'))
         audio_path = record_audio(device_name="sysdefault")
         
         result = pipe(audio_path, generate_kwargs={"language": "russian"})
         question = result['text']
+        ser.write("2".encode('ascii'))
+
         torch.cuda.empty_cache()
         print(question)
         tts.tts_to_file(text=f"Вы спросили {question}",
@@ -181,28 +157,48 @@ def answer(tts, pipe, universalQA):
                 speaker_wav=file_path,
             language="ru")
         torch.cuda.empty_cache()
+        ser.write("5".encode('ascii'))
         
         p = pygame.mixer.Sound('output.wav')
         p.play()
+
         while pygame.mixer.get_busy():
             time.sleep(0.1)
         p = pygame.mixer.Sound('UWU.wav')
         p.play()
         while pygame.mixer.get_busy():
             time.sleep(0.1)
-            
+        # ser.write("4".encode('ascii'))
+        ser.write("2".encode('ascii'))
+        
         audio_path = record_audio(duration=3)
         result = pipe(audio_path, generate_kwargs={"language": "russian"})
         user_response = result['text']
         print(user_response)
-            
+        ser.write("2".encode('ascii'))
+        
         if contains_negative_words(user_response.replace(".", "")):  # If sentiment is negative or neutral
             return
-        ser.write("2".encode('ascii'))
+        
+
+        p = pygame.mixer.Sound('ele.mp3')
+        p.play(loops=6)
+        similar_chunks = KNOWLEDGE_VECTOR_DATABASE.similarity_search_with_score(question, k=3)
+        context = ""
+        for i, (chunk, score) in enumerate(similar_chunks, 1):
+            context += chunk.page_content
+        
+        messages = [
+            {"role": "system", "content": f"Ты сова, которая отвечает на вопросы по слеудющему тексту \n{context}\n. Если не знаешь - не пытайся угадать, признайся что не знаешь. Все цифры заменяй словами в нужном падеже. В конце ответа не ставь точку. Если в вопросе есть слово похожее на лицей, считай что это оно. основываясь ТОЛЬКО на данных, переданных в запросе дай только ответ ТОЛЬКО на этот вопрос"},
+            {"role": "user", "content": "Кто директор 239? В конце ответа не ставь точку"},
+            {"role": "assistant", "content": "Максим Яковлевич Пратусеевич"},       
+            {"role": "user", "content": "Сколько человек в 11 классе?"},
+            {"role": "assistant", "content": "Данной информации у меня нет"},       
+        ]
         messages.append({"role": "user", "content": question})
         answerQA = universalQA(messages, **generation_args)
         messages.remove({"role": "user", "content": question})
-    
+
         answer = answerQA[0]["generated_text"]
         torch.cuda.empty_cache()
 
@@ -214,7 +210,7 @@ def answer(tts, pipe, universalQA):
                 speaker_wav=file_path,
             language="ru")
         ser.write("5".encode('ascii'))
-        
+        p.stop()
         p = pygame.mixer.Sound('output.wav')
         p.play()
         while pygame.mixer.get_busy():
@@ -222,22 +218,22 @@ def answer(tts, pipe, universalQA):
         p = pygame.mixer.Sound('UWU.wav')
         p.play()
         print("end")
-    except Exception as e:
-        print(f'Ошибка {e}')
+    # except Exception as e:
+    #     print(f'Ошибка {e}')
 
 def main():  
-    global last_phrase
     tts, pipe, universalQA = init()
     lasttime = time.perf_counter()
     lastface = time.perf_counter()
     
     cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 800)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 600)
     with mp_face_detection.FaceDetection(min_detection_confidence=0.8) as face_detection:
         while True:
             _, frame = cap.read()
             if not _:
+                print("cant read video")
                 break
             
             frame = cv2.flip(frame, 0)
@@ -264,6 +260,8 @@ def main():
                 
                     # If thumbs up 
                     if className == 'thumbs up' and time.perf_counter()-lasttime>2 and not pygame.mixer.get_busy():
+                        ser.write("2".encode('ascii'))
+                        
                         answer(tts, pipe, universalQA)
                         lasttime = time.perf_counter()
 
@@ -282,10 +280,10 @@ def main():
                     cv2.rectangle(frame, (x1, y1), (x1 + w, y1 + h), (0, 255, 0), 2)
                     cv2.putText(frame, 'Face', (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
                 med = wmax/2+h1max
-                if med > 400:
+                if med > 350:
                     ser.write("3".encode('ascii'))
                     print(3, med)
-                elif med < 300:
+                elif med < 550:
                     ser.write("1".encode('ascii'))
                     print(1, med)
                 else:
@@ -296,22 +294,8 @@ def main():
                 if time.perf_counter()-lastface > 2:
                     ser.write("6".encode('ascii'))
                     print(6)
-
-                if(round(time.perf_counter(), 1)-round(time.perf_counter()) == 0):
-                    if(random.randint(0, 100) in range(58, 60)):
-                        if not pygame.mixer.get_busy():
-                            verdikt = random.randint(1, 4)
-                            if verdikt == last_phrase:
-                                verdikt = (verdikt+1)%4+1
-                            last_phrase=verdikt
-                            p = pygame.mixer.Sound(f'promote{verdikt}.wav')
-                            p.play()
-                            while pygame.mixer.get_busy():
-                                time.sleep(0.1)
-                            p = pygame.mixer.Sound('UWU.wav')
-                            p.play()
-                            while pygame.mixer.get_busy():
-                                time.sleep(0.1)
+                else:
+                    ser.write("2".encode('ascii'))
 
             # Show prediction 
             cv2.putText(frame, className, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
