@@ -1,0 +1,14 @@
+torch>=2.0.0
+transformers==4.30.0
+sounddevice>=0.4.6
+numpy==1.22.0
+TTS==0.21.0
+pygame>=2.5.0
+pyserial>=3.5
+opencv-python>=4.8.0
+mediapipe>=0.10.0
+tensorflow>=2.13.0
+pydub>=0.25.1
+langchain>=0.0.300
+faiss-cpu>=1.7.4
+sentence-transformers>=2.2.2 
