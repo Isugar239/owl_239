@@ -1,10 +1,10 @@
 import torch
-from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSpeechSeq2Seq, AutoProcessor, BertTokenizerFast, AutoModelForCausalLM, TFBertModel
+from transformers import pipeline, AutoTokenizer, AutoModelForSpeechSeq2Seq, AutoProcessor, AutoModelForCausalLM
 import time
 import sounddevice as sd
 import numpy as np
 import wave
-from TTS.api import TTS
+# from TTS.api import TTS
 import pygame
 import random
 import serial
@@ -14,7 +14,6 @@ import mediapipe as mp
 from tensorflow.keras.models import load_model # type: ignore
 import tensorflow as tf
 import os
-from pydub import AudioSegment
 from langchain.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 EMBEDDING_MODEL_NAME = "ai-forever/sbert_large_nlu_ru"
@@ -91,17 +90,12 @@ generation_args = {
 }
 file_path="speaker.wav"
 
-def addUwu(pathToSound):
-    song = AudioSegment.from_wav(pathToSound)
-    song2 = AudioSegment.from_wav("UWU.wav")
-    song3 = song + song2
-    song3.export("output.wav", format="wav")
 
 def init():
     if HAVE_BT:
-        tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
-        tts.to(device)
-        
+        # tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
+        # tts.to(device)
+        tts = 1
         model_id = "openai/whisper-large-v3-turbo"
         modelSR = AutoModelForSpeechSeq2Seq.from_pretrained(
             model_id, torch_dtype=torch.float16, low_cpu_mem_usage=True, use_safetensors=True
@@ -152,10 +146,10 @@ def answer(tts, pipe, universalQA):
 
         torch.cuda.empty_cache()
         print(question)
-        tts.tts_to_file(text=f"Вы спросили {question}",
-                file_path="output.wav",
-                speaker_wav=file_path,
-            language="ru")
+        # tts.tts_to_file(text=f"Вы спросили {question}",
+        #         file_path="output.wav",
+        #         speaker_wav=file_path,
+        #     language="ru")
         torch.cuda.empty_cache()
         ser.write("5".encode('ascii'))
         
@@ -205,10 +199,10 @@ def answer(tts, pipe, universalQA):
         print("Ответ:", answer)
         if not HAVE_BT:
             return
-        tts.tts_to_file(text=answer,
-                file_path="output.wav",
-                speaker_wav=file_path,
-            language="ru")
+        # tts.tts_to_file(text=answer,
+        #         file_path="output.wav",
+        #         speaker_wav=file_path,
+        #     language="ru")
         ser.write("5".encode('ascii'))
         p.stop()
         p = pygame.mixer.Sound('output.wav')
