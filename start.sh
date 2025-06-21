@@ -1,5 +1,5 @@
 #!/bin/bash
-
+sudo mount /dev/nvme0n1p2 ~/.cache/huggingface/hub
 # Устанавливаем обработчик прерывания. При выходе из скрипта (Ctrl+C) он убьет все дочерние процессы.
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 
