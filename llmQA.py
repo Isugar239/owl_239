@@ -7,18 +7,23 @@ import wave
 # from TTS.api import TTS
 import pygame
 import random
-import serial
+from serial import Serial
+import scipy.io.wavfile as wavfile
 import cv2
 import numpy as np
 import mediapipe as mp
 from tensorflow.keras.models import load_model # type: ignore
 import tensorflow as tf
 import os
-from langchain.vectorstores import FAISS
+from ruaccent import RUAccent
+from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
+
 EMBEDDING_MODEL_NAME = "ai-forever/sbert_large_nlu_ru"
 
-# Load the embedding model (must be the same one used for creation)
+REQUEST_FILE = "request.txt"
+RESPONSE_FILE = "output.wav"
+
 embedding_model = HuggingFaceEmbeddings(
     model_name=EMBEDDING_MODEL_NAME,
     model_kwargs={"device": "cpu"},
@@ -27,7 +32,7 @@ embedding_model = HuggingFaceEmbeddings(
 
 # Load the saved index
 KNOWLEDGE_VECTOR_DATABASE = FAISS.load_local(
-    folder_path="znania",
+    folder_path="./znania",
     embeddings=embedding_model,
     allow_dangerous_deserialization=True  # Needed for security reasons
 )
@@ -43,7 +48,7 @@ if HAVE_APC:
     port = '/dev/ttyUSB0'
     baud_rate = 9600
     timeout = 1
-    ser = serial.Serial(port, baud_rate, timeout=timeout)
+    ser = Serial(port, baud_rate, timeout=timeout)
 # else:
 #     ser = SimpleNamespace()
 #     ser.write(*args) = lambda self: "No apc"
@@ -62,7 +67,7 @@ hands = mpHands.Hands(max_num_hands=1, min_detection_confidence=0.7)
 mpDraw = mp.solutions.drawing_utils
 
 gesture_model = load_model('mp_hand_gesture')
-
+# gesture_model = keras.layers.TFSMLayere("mp_hand_gesture", call_endpoint='serving_default')
 classNames = ['okay', 'peace', 'thumbs up', 'thumbs down', 'call me', 'stop', 'rock', 'live long', 'fist', 'smile']
 
 torch.random.manual_seed(0)
@@ -93,12 +98,9 @@ file_path="speaker.wav"
 
 def init():
     if HAVE_BT:
-        # tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
-        # tts.to(device)
-        tts = 1
         model_id = "openai/whisper-large-v3-turbo"
         modelSR = AutoModelForSpeechSeq2Seq.from_pretrained(
-            model_id, torch_dtype=torch.float16, low_cpu_mem_usage=True, use_safetensors=True
+            model_id, torch_dtype=torch.float16, low_cpu_mem_usage=False, use_safetensors=True
         )
         modelSR.to(device)
         processorSR = AutoProcessor.from_pretrained(model_id)
@@ -111,7 +113,6 @@ def init():
         device=device,
     )
     else:
-        tts = 1
         modelSR = 2
         pipe = 3
     tokenizerLLM = AutoTokenizer.from_pretrained(model_path)
@@ -128,9 +129,9 @@ def init():
         tokenizer=tokenizerLLM,
     )
     
-    return tts, pipe, universalQA
+    return pipe, universalQA
 
-def answer(tts, pipe, universalQA):
+def answer(pipe, universalQA):
     # try:
         
         p = pygame.mixer.Sound('listen.wav')
@@ -146,23 +147,24 @@ def answer(tts, pipe, universalQA):
 
         torch.cuda.empty_cache()
         print(question)
-        # tts.tts_to_file(text=f"Вы спросили {question}",
-        #         file_path="output.wav",
-        #         speaker_wav=file_path,
-        #     language="ru")
-        torch.cuda.empty_cache()
-        ser.write("5".encode('ascii'))
         
-        p = pygame.mixer.Sound('output.wav')
+        # Прямая логика TTS: запрос, ожидание, проигрывание, удаление
+        with open(REQUEST_FILE, "w", encoding="utf-8") as f:
+            f.write(f"Вы спросили: {question}")
+        while not os.path.exists(RESPONSE_FILE):
+            time.sleep(0.1)
+        p = pygame.mixer.Sound(RESPONSE_FILE)
         p.play()
-
         while pygame.mixer.get_busy():
             time.sleep(0.1)
+        os.remove(RESPONSE_FILE)
+
+        ser.write("5".encode('ascii'))
+        
         p = pygame.mixer.Sound('UWU.wav')
         p.play()
         while pygame.mixer.get_busy():
             time.sleep(0.1)
-        # ser.write("4".encode('ascii'))
         ser.write("2".encode('ascii'))
         
         audio_path = record_audio(duration=3)
@@ -185,7 +187,7 @@ def answer(tts, pipe, universalQA):
         messages = [
             {"role": "system", "content": f"Ты сова, которая отвечает на вопросы по слеудющему тексту \n{context}\n. Если не знаешь - не пытайся угадать, признайся что не знаешь. Все цифры заменяй словами в нужном падеже. В конце ответа не ставь точку. Если в вопросе есть слово похожее на лицей, считай что это оно. основываясь ТОЛЬКО на данных, переданных в запросе дай только ответ ТОЛЬКО на этот вопрос"},
             {"role": "user", "content": "Кто директор 239? В конце ответа не ставь точку"},
-            {"role": "assistant", "content": "Максим Яковлевич Пратусеевич"},       
+            {"role": "assistant", "content": "Максим Яковлевич Пратусевич"},       
             {"role": "user", "content": "Сколько человек в 11 классе?"},
             {"role": "assistant", "content": "Данной информации у меня нет"},       
         ]
@@ -195,20 +197,25 @@ def answer(tts, pipe, universalQA):
 
         answer = answerQA[0]["generated_text"]
         torch.cuda.empty_cache()
-
         print("Ответ:", answer)
+
         if not HAVE_BT:
             return
-        # tts.tts_to_file(text=answer,
-        #         file_path="output.wav",
-        #         speaker_wav=file_path,
-        #     language="ru")
-        ser.write("5".encode('ascii'))
-        p.stop()
-        p = pygame.mixer.Sound('output.wav')
+
+        # Прямая логика TTS для ответа
+        p.stop() # Останавливаем проигрывание "думаю"
+        with open(REQUEST_FILE, "w", encoding="utf-8") as f:
+            f.write(answer)
+        while not os.path.exists(RESPONSE_FILE):
+            time.sleep(0.1)
+        p = pygame.mixer.Sound(RESPONSE_FILE)
         p.play()
         while pygame.mixer.get_busy():
             time.sleep(0.1)
+        os.remove(RESPONSE_FILE)
+
+        ser.write("5".encode('ascii'))
+        
         p = pygame.mixer.Sound('UWU.wav')
         p.play()
         print("end")
@@ -216,7 +223,7 @@ def answer(tts, pipe, universalQA):
     #     print(f'Ошибка {e}')
 
 def main():  
-    tts, pipe, universalQA = init()
+    pipe, universalQA = init()
     lasttime = time.perf_counter()
     lastface = time.perf_counter()
     
@@ -230,7 +237,7 @@ def main():
                 print("cant read video")
                 break
             
-            frame = cv2.flip(frame, 0)
+            # frame = cv2.flip(frame, 0)
             x, y, c = frame.shape
 
             framergb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -256,7 +263,7 @@ def main():
                     if className == 'thumbs up' and time.perf_counter()-lasttime>2 and not pygame.mixer.get_busy():
                         ser.write("2".encode('ascii'))
                         
-                        answer(tts, pipe, universalQA)
+                        answer(pipe, universalQA)
                         lasttime = time.perf_counter()
 
             # detect face
