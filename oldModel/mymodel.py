@@ -12,7 +12,7 @@ import os
 from answering import *
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
-bot = telebot.TeleBot('7935579912:AAHV6o-3WeKVJIqixeMy0VPEljtZE3l7J3Y')
+bot = telebot.TeleBot('api')
 
 
 if(input('tg or local?') == 'tg'):
