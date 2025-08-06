@@ -16,7 +16,7 @@ mypath = "<путь_к_файлам_с_примерами>"
 def main():
     sdk = YCloudML(
         folder_id="b1g76obevh0ia28dnl00",
-        auth="AQVN1s7HadfmF9eWOj0twj3zve5MX-S9QrWrbVLJ",
+        auth="###",
     )
 
     paths = pathlib.Path(mypath).iterdir()
@@ -89,4 +89,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
