@@ -100,11 +100,7 @@ torch.random.manual_seed(0)
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
-<<<<<<< HEAD
 def record_audio(filename="/media/olegg/sova/owl_239/voice.wav", duration=5, samplerate=44100, device_name=""):
-=======
-def record_audio(filename="voice.wav", duration=5, samplerate=44100, device_name=""):
->>>>>>> b08b400b (	new file:   KWS/__init__.py)
     # Переключаем Bluetooth в режим гарнитуры
     os.system("/media/olegg/sova/owl_239/bt_audio_switcher.sh start_record")
     print("rec start")
@@ -293,15 +289,9 @@ def answer(pipe, universalQA, cap):
         
         pygame.mixer.stop()
         print("play")
-<<<<<<< HEAD
         _play_sound_with_gesture_interrupt("/media/olegg/sova/owl_239/tts_output.wav", cap)
         
         p = pygame.mixer.Sound('/media/olegg/sova/owl_239/UWU.wav')
-=======
-        _play_sound_with_gesture_interrupt("tts_output.wav", cap)
-        
-        p = pygame.mixer.Sound('UWU.wav')
->>>>>>> b08b400b (	new file:   KWS/__init__.py)
         p.play()
         print("end")
     # except Exception as e:
