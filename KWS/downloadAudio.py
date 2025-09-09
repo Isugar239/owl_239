@@ -2,7 +2,11 @@ import torchaudio
 from torch.utils.data import random_split
 from pathlib import Path
 
+<<<<<<< HEAD
 data_root = (Path(__file__).resolve().parent.parent / "data")
+=======
+data_root = (Path(__file__).resolve().parent.parent / "../data/SpeechCommands/speech_commands_v0.02/data")
+>>>>>>> b08b400b (	new file:   KWS/__init__.py)
 data_root.mkdir(parents=True, exist_ok=True)
 
 dataset = torchaudio.datasets.SPEECHCOMMANDS(
