@@ -1,5 +1,5 @@
 import torch
-from transformers import pipeline, AutoTokenizer, AutoModelForSpeechSeq2Seq, AutoProcessor, AutoModelForCausalLM, SeamlessM4Tv2Model
+from transformers import pipeline, AutoTokenizer, AutoModelForSpeechSeq2Seq, AutoProcessor, AutoModelForCausalLM
 import time
 import sounddevice as sd
 import numpy as np
@@ -16,7 +16,6 @@ import mediapipe as mp
 from tensorflow.keras.models import load_model # type: ignore
 import tensorflow as tf
 import os
-from ruaccent import RUAccent
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 import num2words
@@ -34,7 +33,7 @@ embedding_model = HuggingFaceEmbeddings(
 
 # Load the saved index
 KNOWLEDGE_VECTOR_DATABASE = FAISS.load_local(
-    folder_path="./znania",
+    folder_path="/media/olegg/sova/owl_239/znania",
     embeddings=embedding_model,
     allow_dangerous_deserialization=True  # Needed for security reasons
 )
@@ -45,7 +44,13 @@ last_phrase = 0
 port = '/dev/ttyUSB0'
 baud_rate = 9600
 timeout = 1
-ser = Serial(port, baud_rate, timeout=timeout)
+while True:
+    try:
+        ser = Serial(port, baud_rate, timeout=timeout)
+        break
+    except Exception as e:
+        print(e)
+    
 pygame.init()
 # Инициализируем mixer с правильными параметрами для ALSA
 try:
@@ -87,7 +92,7 @@ mpHands = mp.solutions.hands
 hands = mpHands.Hands(max_num_hands=1, min_detection_confidence=0.7)
 mpDraw = mp.solutions.drawing_utils
 
-gesture_model = load_model('mp_hand_gesture')
+gesture_model = load_model('/media/olegg/sova/owl_239/mp_hand_gesture')
 # gesture_model = keras.layers.TFSMLayere("mp_hand_gesture", call_endpoint='serving_default')
 classNames = ['okay', 'peace', 'thumbs up', 'thumbs down', 'call me', 'stop', 'rock', 'live long', 'fist', 'smile']
 
@@ -95,13 +100,13 @@ torch.random.manual_seed(0)
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
-def record_audio(filename="voice.wav", duration=5, samplerate=46200, device_name=""):
+def record_audio(filename="/media/olegg/sova/owl_239/voice.wav", duration=5, samplerate=44100, device_name=""):
     # Переключаем Bluetooth в режим гарнитуры
-    # os.system("./bt_audio_switcher.sh start_record")
+    os.system("/media/olegg/sova/owl_239/bt_audio_switcher.sh start_record")
     print("rec start")
     try:
         audio_data = sd.rec(int(samplerate * duration), samplerate=samplerate, channels=1, dtype=np.int16)
-        sd.wait()
+        time.sleep(duration)
         print("rec end")
         with wave.open(filename, "wb") as wf:
             wf.setnchannels(1)
@@ -109,26 +114,9 @@ def record_audio(filename="voice.wav", duration=5, samplerate=46200, device_name
             wf.setframerate(samplerate)
             wf.writeframes(audio_data.tobytes())
     except Exception as e:
-        print(f"Audio recording error: {e}")
-        # Пробуем с другими параметрами
-        try:
-            audio_data = sd.rec(int(16000 * duration), samplerate=16000, channels=1, dtype=np.int16)
-            sd.wait()
-            with wave.open(filename, "wb") as wf:
-                wf.setnchannels(1)
-                wf.setsampwidth(2)
-                wf.setframerate(16000)
-                wf.writeframes(audio_data.tobytes())
-        except Exception as e2:
-            print(f"Alternative recording also failed: {e2}")
-            # Создаем пустой файл
-            with wave.open(filename, "wb") as wf:
-                wf.setnchannels(1)
-                wf.setsampwidth(2)
-                wf.setframerate(16000)
-                wf.writeframes(np.zeros(16000, dtype=np.int16).tobytes())
+        print(e)
     # Возвращаем Bluetooth в режим высокого качества
-    # os.system("./bt_audio_switcher.sh stop_record")
+    os.system("/media/olegg/sova/owl_239/bt_audio_switcher.sh stop_record")
     return filename
 
 
@@ -138,7 +126,7 @@ generation_args = {
     "return_full_text": False,
     "do_sample": False,
 }
-file_path="speaker.wav"
+file_path="/media/olegg/sova/owl_239/speaker.wav"
 
 
 def init():
@@ -219,7 +207,7 @@ def _play_sound_with_gesture_interrupt(sound_path: str, cap):
 def answer(pipe, universalQA, cap):
     # try:
         
-        p = pygame.mixer.Sound('listen.mp3')
+        p = pygame.mixer.Sound('/media/olegg/sova/owl_239/listen.mp3')
         p.play()
         while pygame.mixer.get_busy():
             time.sleep(0.1)
@@ -234,29 +222,29 @@ def answer(pipe, universalQA, cap):
         print(question)
         
         tts = gTTS(f'Вы спросили {question}?', lang="ru")
-        tts.save("temp_output.mp3")
+        tts.save("/media/olegg/sova/owl_239/temp_output.mp3")
 
         # Конвертация mp3 в wav
-        sound = AudioSegment.from_mp3("temp_output.mp3")
-        sound.export("temp_output.wav", format="wav")
+        sound = AudioSegment.from_mp3("/media/olegg/sova/owl_239/temp_output.mp3")
+        sound.export("/media/olegg/sova/owl_239/temp_output.wav", format="wav")
 
         # Ресемплирование
         ser.write("5".encode('ascii'))
-        change_sample_rate("temp_output.wav", "tts_output.wav", 17000)
+        change_sample_rate("/media/olegg/sova/owl_239/temp_output.wav", "/media/olegg/sova/owl_239/tts_output.wav", 17000)
         
-        p = pygame.mixer.Sound("tts_output.wav")
+        p = pygame.mixer.Sound("/media/olegg/sova/owl_239/tts_output.wav")
         p.play()
         while pygame.mixer.get_busy():
             time.sleep(0.1)
 
         
-        p = pygame.mixer.Sound('UWU.wav')
+        p = pygame.mixer.Sound('/media/olegg/sova/owl_239/UWU.wav')
         p.play()
         while pygame.mixer.get_busy():
             time.sleep(0.1)
         ser.write("2".encode('ascii'))
         
-        audio_path = record_audio(duration=3)
+        audio_path = record_audio(device_name="sysdefault")
         result = pipe(audio_path, generate_kwargs={"language": "russian"})
         user_response = result['text']
         print(user_response)
@@ -265,7 +253,7 @@ def answer(pipe, universalQA, cap):
             return
         
         ra = random.randint(1, 4)
-        p = pygame.mixer.Sound(f'wait{ra}.mp3')
+        p = pygame.mixer.Sound(f'/media/olegg/sova/owl_239/wait{ra}.mp3')
         p.play(loops=6)
         similar_chunks = KNOWLEDGE_VECTOR_DATABASE.similarity_search_with_score(question, k=3)
         context = ""
@@ -289,21 +277,21 @@ def answer(pipe, universalQA, cap):
 
         
         tts = gTTS(answer, lang="ru")
-        tts.save("temp_output.mp3")
+        tts.save("/media/olegg/sova/owl_239/temp_output.mp3")
 
         # Конвертация mp3 в wav
-        sound = AudioSegment.from_mp3("temp_output.mp3")
-        sound.export("temp_output.wav", format="wav")
+        sound = AudioSegment.from_mp3("/media/olegg/sova/owl_239/temp_output.mp3")
+        sound.export("/media/olegg/sova/owl_239/temp_output.wav", format="wav")
 
         # Ресемплирование
-        change_sample_rate("temp_output.wav", "tts_output.wav", 18000)
+        change_sample_rate("/media/olegg/sova/owl_239/temp_output.wav", "/media/olegg/sova/owl_239/tts_output.wav", 18000)
         ser.write("5".encode('ascii'))
         
         pygame.mixer.stop()
         print("play")
-        _play_sound_with_gesture_interrupt("tts_output.wav", cap)
+        _play_sound_with_gesture_interrupt("/media/olegg/sova/owl_239/tts_output.wav", cap)
         
-        p = pygame.mixer.Sound('UWU.wav')
+        p = pygame.mixer.Sound('/media/olegg/sova/owl_239/UWU.wav')
         p.play()
         print("end")
     # except Exception as e:
@@ -327,16 +315,16 @@ def check_face_stable(face_detected, face_start_time, stable_duration=0.3):
 
 def main():  
     pipe, universalQA = init()
-    input()
+  
     ser.write("6".encode('ascii'))
-    input()
+ 
     lasttime = time.perf_counter()
     lastface = time.perf_counter()
     
     face_start_time = None
     face_stable = False
     
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(0)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 800)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 600)
     try:
