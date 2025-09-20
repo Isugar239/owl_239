@@ -102,7 +102,7 @@ torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
 def record_audio(filename="/media/olegg/sova/owl_239/voice.wav", duration=5, samplerate=44100, device_name=""):
     # Переключаем Bluetooth в режим гарнитуры
-    os.system("/media/olegg/sova/owl_239/bt_audio_switcher.sh start_record")
+    # os.system("/media/olegg/sova/owl_239/bt_audio_switcher.sh start_record")
     print("rec start")
     try:
         audio_data = sd.rec(int(samplerate * duration), samplerate=samplerate, channels=1, dtype=np.int16)
@@ -116,7 +116,7 @@ def record_audio(filename="/media/olegg/sova/owl_239/voice.wav", duration=5, sam
     except Exception as e:
         print(e)
     # Возвращаем Bluetooth в режим высокого качества
-    os.system("/media/olegg/sova/owl_239/bt_audio_switcher.sh stop_record")
+    # os.system("/media/olegg/sova/owl_239/bt_audio_switcher.sh stop_record")
     return filename
 
 
