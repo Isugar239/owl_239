@@ -4,7 +4,7 @@ import time
 import sounddevice as sd
 import numpy as np
 import wave
-# from TTS.api import TTS
+# from TTS.api impor TTS
 import pygame
 import random
 from serial import Serial
@@ -31,7 +31,6 @@ embedding_model = HuggingFaceEmbeddings(
     encode_kwargs={"normalize_embeddings": True},
 )
 
-# Load the saved index
 KNOWLEDGE_VECTOR_DATABASE = FAISS.load_local(
     folder_path="/media/olegg/sova/owl_239/znania",
     embeddings=embedding_model,
@@ -52,12 +51,10 @@ while True:
         print(e)
     
 pygame.init()
-# Инициализируем mixer с правильными параметрами для ALSA
 try:
     pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
 except Exception as e:
     print(f"Mixer init error: {e}")
-    # Пробуем альтернативные параметры
     try:
         pygame.mixer.init(frequency=22050, size=-16, channels=1, buffer=256)
     except Exception as e2:
@@ -67,7 +64,7 @@ if physical_devices:
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 def contains_negative_words(text):
-    negative_words = ["нет", "не", "никак", "вряд ли", "никогда", "ни за что", "неа", "отрицательно", "исключено", "не думаю", "сомневаюсь"]
+    negative_words = ["нет", "не", "никак", "никогда", "ни за что", "неа", "отрицательно", "исключено", "не думаю", "сомневаюсь"]
     text_lower = text.lower()
     return any(neg in text_lower for neg in negative_words)
 
@@ -93,7 +90,6 @@ hands = mpHands.Hands(max_num_hands=1, min_detection_confidence=0.7)
 mpDraw = mp.solutions.drawing_utils
 
 gesture_model = load_model('/media/olegg/sova/owl_239/mp_hand_gesture')
-# gesture_model = keras.layers.TFSMLayere("mp_hand_gesture", call_endpoint='serving_default')
 classNames = ['okay', 'peace', 'thumbs up', 'thumbs down', 'call me', 'stop', 'rock', 'live long', 'fist', 'smile']
 
 torch.random.manual_seed(0)
@@ -101,13 +97,12 @@ device = "cuda:0" if torch.cuda.is_available() else "cpu"
 torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
 def record_audio(filename="/media/olegg/sova/owl_239/voice.wav", duration=5, samplerate=44100, device_name=""):
-    # Переключаем Bluetooth в режим гарнитуры
     os.system("/media/olegg/sova/owl_239/bt_audio_switcher.sh start_record")
-    print("rec start")
+    print("rec start, time 5 sec")
     try:
         audio_data = sd.rec(int(samplerate * duration), samplerate=samplerate, channels=1, dtype=np.int16)
         time.sleep(duration)
-        print("rec end")
+        print("rec ended succesfully")
         with wave.open(filename, "wb") as wf:
             wf.setnchannels(1)
             wf.setsampwidth(2)
@@ -122,7 +117,7 @@ def record_audio(filename="/media/olegg/sova/owl_239/voice.wav", duration=5, sam
 
 model_path = "microsoft/Phi-4-mini-instruct"
 generation_args = {
-    "max_new_tokens": 182,
+    "max_new_tokens": 239,
     "return_full_text": False,
     "do_sample": False,
 }
@@ -182,7 +177,7 @@ def _play_sound_with_gesture_interrupt(sound_path: str, cap):
         x, y, c = frame.shape
         framergb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         result = hands.process(framergb)
-        className = ''
+        className = 'NaN'
         if result.multi_hand_landmarks:
             landmarks = []
             for handslms in result.multi_hand_landmarks:
@@ -200,13 +195,10 @@ def _play_sound_with_gesture_interrupt(sound_path: str, cap):
                 break
         cv2.putText(frame, className, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
         cv2.imshow("owl GUI", frame)
-        cv2.waitKey(1)
         time.sleep(0.02)
 
 
-def answer(pipe, universalQA, cap):
-    # try:
-        
+def answer(pipe, universalQA, cap):    
         p = pygame.mixer.Sound('/media/olegg/sova/owl_239/listen.mp3')
         p.play()
         while pygame.mixer.get_busy():
@@ -262,6 +254,7 @@ def answer(pipe, universalQA, cap):
         
         messages = [
             {"role": "system", "content": f"Ты робот-сова из города санкт-петербург. Ты отвечаешь на вопросы по тексту \n{context}\n. Если не знаешь - не пытайся угадать, признайся что не знаешь."},
+            {"role": "system", "content": f"на вопросы про анекдот - отвечай так:'что будем делать со сваркой? — посмотрим'"},
             {"role": "user", "content": "Кто директор 239?"},
             {"role": "assistant", "content": "Максим Яковлевич Пратусевич"},       
             {"role": "user", "content": "Как я себя чувствую?"},
@@ -279,11 +272,9 @@ def answer(pipe, universalQA, cap):
         tts = gTTS(answer, lang="ru")
         tts.save("/media/olegg/sova/owl_239/temp_output.mp3")
 
-        # Конвертация mp3 в wav
         sound = AudioSegment.from_mp3("/media/olegg/sova/owl_239/temp_output.mp3")
         sound.export("/media/olegg/sova/owl_239/temp_output.wav", format="wav")
 
-        # Ресемплирование
         change_sample_rate("/media/olegg/sova/owl_239/temp_output.wav", "/media/olegg/sova/owl_239/tts_output.wav", 18000)
         ser.write("5".encode('ascii'))
         
@@ -293,10 +284,7 @@ def answer(pipe, universalQA, cap):
         
         p = pygame.mixer.Sound('/media/olegg/sova/owl_239/UWU.wav')
         p.play()
-        print("end")
-    # except Exception as e:
-    #     print(f'Ошибка {e}')
-
+        print("ready")
 
 
 def check_face_stable(face_detected, face_start_time, stable_duration=0.3):

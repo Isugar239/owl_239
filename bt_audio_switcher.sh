@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BLUETOOTH_DEVICE="WH-CH510"
+BLUETOOTH_DEVICE="BT201-MICRO"
 PROFILE_A2DP="a2dp_sink"
 PROFILE_HEADSET_UNIT="handsfree_head_unit"
 
@@ -18,7 +18,7 @@ set_headset_mode() {
         echo "Bluetooth card not found."
         exit 1
     fi
-    echo "Переключаю в режим гарнитуры (микрофон + низкое качество)..."
+    echo "режим гарнитуры (микрофон + низкое качество)..."
     pacmd set-card-profile "$CARD" "$PROFILE_HEADSET_UNIT"
 }
 
@@ -28,7 +28,7 @@ set_a2dp_mode() {
         echo "Bluetooth card not found."
         exit 1
     fi
-    echo "Переключаю в режим высокого качества (A2DP)..."
+    echo "режим высокого качества (A2DP)..."
     pacmd set-card-profile "$CARD" "$PROFILE_A2DP"
 }
 
