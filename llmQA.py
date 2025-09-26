@@ -317,7 +317,7 @@ def main():
     pipe, universalQA = init()
   
     ser.write("6".encode('ascii'))
- 
+    input()
     lasttime = time.perf_counter()
     lastface = time.perf_counter()
     
