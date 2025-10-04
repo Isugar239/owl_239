@@ -23,6 +23,8 @@ import string
 import re
 from gtts import gTTS
 from pydub import AudioSegment
+from TTS.api import TTS
+LOCAL_TTS = False
 EMBEDDING_MODEL_NAME = "ai-forever/sbert_large_nlu_ru"
 last_digit = -1
 embedding_model = HuggingFaceEmbeddings(
@@ -128,7 +130,17 @@ generation_args = {
 }
 file_path="/media/olegg/sova/owl_239/speaker.wav"
 
+def do_tts(tts, text, lang):
+    if tts:
+        tts.tts_to_file(text=text, file_path="/media/olegg/sova/owl_239/tts_output.wav", speaker_wav=file_path, language=lang)
+    else:
+        tts = gTTS(text, lang=lang)
+        tts.save("/media/olegg/sova/owl_239/tts_output.mp3")
+        sound = AudioSegment.from_mp3("/media/olegg/sova/owl_239/temp_output.mp3")
+        sound.export("/media/olegg/sova/owl_239/temp_output.wav", format="wav")
 
+        ser.write("5".encode('ascii'))
+        change_sample_rate("/media/olegg/sova/owl_239/temp_output.wav", "/media/olegg/sova/owl_239/tts_output.wav", 17000)
 def init():
 
     model_id = "openai/whisper-large-v3"
@@ -159,9 +171,11 @@ def init():
         tokenizer=tokenizerLLM,
     )
     
-    tts_processor= 1
-    tts_model = 52
-    return pipe, universalQA, 
+    if LOCAL_TTS:
+        tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2", gpu=True)
+    else:
+        tts = 0
+    return pipe, universalQA, tts
 
 
 def _play_sound(sound_path: str):
@@ -221,16 +235,8 @@ def answer(pipe, universalQA, cap):
         torch.cuda.empty_cache()
         print(question)
         
-        tts = gTTS(f'Вы спросили {question}?', lang="ru")
-        tts.save("/media/olegg/sova/owl_239/temp_output.mp3")
-
-        # Конвертация mp3 в wav
-        sound = AudioSegment.from_mp3("/media/olegg/sova/owl_239/temp_output.mp3")
-        sound.export("/media/olegg/sova/owl_239/temp_output.wav", format="wav")
-
-        # Ресемплирование
-        ser.write("5".encode('ascii'))
-        change_sample_rate("/media/olegg/sova/owl_239/temp_output.wav", "/media/olegg/sova/owl_239/tts_output.wav", 17000)
+        do_tts(tts, f'Вы спросили {question}?', lang="ru")
+       
         
         p = pygame.mixer.Sound("/media/olegg/sova/owl_239/tts_output.wav")
         p.play()
@@ -275,16 +281,8 @@ def answer(pipe, universalQA, cap):
         torch.cuda.empty_cache()
         print("Ответ:", answer)
 
-        
-        tts = gTTS(answer, lang="ru")
-        tts.save("/media/olegg/sova/owl_239/temp_output.mp3")
+        do_tts(tts, answer, lang="ru")
 
-        # Конвертация mp3 в wav
-        sound = AudioSegment.from_mp3("/media/olegg/sova/owl_239/temp_output.mp3")
-        sound.export("/media/olegg/sova/owl_239/temp_output.wav", format="wav")
-
-        # Ресемплирование
-        change_sample_rate("/media/olegg/sova/owl_239/temp_output.wav", "/media/olegg/sova/owl_239/tts_output.wav", 20000)
         ser.write("5".encode('ascii'))
         
         pygame.mixer.stop()
