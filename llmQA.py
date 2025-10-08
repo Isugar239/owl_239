@@ -25,6 +25,8 @@ from gtts import gTTS
 from pydub import AudioSegment
 from TTS.api import TTS
 LOCAL_TTS = False
+USE_MULTILANGUAL = True
+CLEAR_CACHE = True
 EMBEDDING_MODEL_NAME = "ai-forever/sbert_large_nlu_ru"
 last_digit = -1
 embedding_model = HuggingFaceEmbeddings(
@@ -229,7 +231,7 @@ def answer(pipe, universalQA, cap):
         audio_path = record_audio(device_name="sysdefault")
         ser.write("2".encode('ascii'))
         
-        result = pipe(audio_path, generate_kwargs={"language": "russian"})
+        result = pipe(audio_path)
         question = result['text']
 
         torch.cuda.empty_cache()
@@ -251,7 +253,7 @@ def answer(pipe, universalQA, cap):
         ser.write("2".encode('ascii'))
         
         audio_path = record_audio(device_name="sysdefault")
-        result = pipe(audio_path, generate_kwargs={"language": "russian"})
+        result = pipe(audio_path)
         user_response = result['text']
         print(user_response)
         
@@ -275,8 +277,9 @@ def answer(pipe, universalQA, cap):
         ]
         messages.append({"role": "user", "content": f'{question}'})
         answerQA = universalQA(messages, **generation_args)
-        messages.remove({"role": "user", "content": f'{question}'})
-
+        if CLEAR_CACHE:
+            messages.remove({"role": "user", "content": f'{question}'})
+        
         answer = answerQA[0]["generated_text"]
         torch.cuda.empty_cache()
         print("Ответ:", answer)
