@@ -261,7 +261,7 @@ def answer(pipe, universalQA, cap, tts):
         
         ra = random.randint(1, 4)
         p = pygame.mixer.Sound(f'/media/olegg/sova/owl_239/wait{ra}.mp3')
-        p.play(loops=6)
+        p.play()
         similar_chunks = KNOWLEDGE_VECTOR_DATABASE.similarity_search_with_score(question, k=3)
         context = ""
         for i, (chunk, score) in enumerate(similar_chunks, 1):
