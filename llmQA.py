@@ -4,7 +4,6 @@ import time
 import sounddevice as sd
 import numpy as np
 import wave
-# from TTS.api import TTS
 import pygame
 import random
 from serial import Serial

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BLUETOOTH_DEVICE="TG-157"
+BLUETOOTH_DEVICE="BT201-MICRO"
 PROFILE_A2DP="a2dp_sink"
 PROFILE_HEADSET_UNIT="handsfree_head_unit"
 
