@@ -220,7 +220,7 @@ def _play_sound_with_gesture_interrupt(sound_path: str, cap):
         time.sleep(0.02)
 
 
-def answer(pipe, universalQA, cap):
+def answer(pipe, universalQA, cap, tts):
     # try:
         
         p = pygame.mixer.Sound('/media/olegg/sova/owl_239/listen.mp3')
@@ -316,7 +316,7 @@ def check_face_stable(face_detected, face_start_time, stable_duration=0.2):
 
 def main(): 
     global last_digit 
-    pipe, universalQA = init()
+    pipe, universalQA, tts = init()
     
     ser.write("6".encode('ascii'))
     input()
@@ -360,7 +360,7 @@ def main():
                         if className == 'thumbs up' and time.perf_counter()-lasttime>2 and not pygame.mixer.get_busy():
                             ser.write("2".encode('ascii'))
                             
-                            answer(pipe, universalQA, cap)
+                            answer(pipe, universalQA, cap, tts)
                             lasttime = time.perf_counter()
 
                 face_results = face_detection.process(framergb)
