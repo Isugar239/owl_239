@@ -24,6 +24,8 @@ from gtts import gTTS
 from pydub import AudioSegment
 from TTS.api import TTS
 LOCAL_TTS = False
+USE_MULTILANGUAL = True
+CLEAR_CACHE = True
 EMBEDDING_MODEL_NAME = "ai-forever/sbert_large_nlu_ru"
 last_digit = -1
 embedding_model = HuggingFaceEmbeddings(
@@ -217,7 +219,7 @@ def _play_sound_with_gesture_interrupt(sound_path: str, cap):
         time.sleep(0.02)
 
 
-def answer(pipe, universalQA, cap):
+def answer(pipe, universalQA, cap, tts):
     # try:
         
         p = pygame.mixer.Sound('/media/olegg/sova/owl_239/listen.mp3')
@@ -228,7 +230,7 @@ def answer(pipe, universalQA, cap):
         audio_path = record_audio(device_name="sysdefault")
         ser.write("2".encode('ascii'))
         
-        result = pipe(audio_path, generate_kwargs={"language": "russian"})
+        result = pipe(audio_path)
         question = result['text']
 
         torch.cuda.empty_cache()
@@ -250,7 +252,7 @@ def answer(pipe, universalQA, cap):
         ser.write("2".encode('ascii'))
         
         audio_path = record_audio(device_name="sysdefault")
-        result = pipe(audio_path, generate_kwargs={"language": "russian"})
+        result = pipe(audio_path)
         user_response = result['text']
         print(user_response)
         
@@ -274,8 +276,9 @@ def answer(pipe, universalQA, cap):
         ]
         messages.append({"role": "user", "content": f'{question}'})
         answerQA = universalQA(messages, **generation_args)
-        messages.remove({"role": "user", "content": f'{question}'})
-
+        if CLEAR_CACHE:
+            messages.remove({"role": "user", "content": f'{question}'})
+        
         answer = answerQA[0]["generated_text"]
         torch.cuda.empty_cache()
         print("Ответ:", answer)
@@ -312,7 +315,7 @@ def check_face_stable(face_detected, face_start_time, stable_duration=0.2):
 
 def main(): 
     global last_digit 
-    pipe, universalQA = init()
+    pipe, universalQA, tts = init()
     
     ser.write("6".encode('ascii'))
     input()
@@ -356,7 +359,7 @@ def main():
                         if className == 'thumbs up' and time.perf_counter()-lasttime>2 and not pygame.mixer.get_busy():
                             ser.write("2".encode('ascii'))
                             
-                            answer(pipe, universalQA, cap)
+                            answer(pipe, universalQA, cap, tts)
                             lasttime = time.perf_counter()
 
                 face_results = face_detection.process(framergb)
