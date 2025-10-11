@@ -26,6 +26,7 @@ from TTS.api import TTS
 LOCAL_TTS = False
 USE_MULTILANGUAL = True
 CLEAR_CACHE = True
+CONFIRM_QUESTION = False
 EMBEDDING_MODEL_NAME = "ai-forever/sbert_large_nlu_ru"
 last_digit = -1
 embedding_model = HuggingFaceEmbeddings(
@@ -132,11 +133,12 @@ generation_args = {
 file_path="/media/olegg/sova/owl_239/speaker.wav"
 
 def do_tts(tts, text, lang):
-    if tts:
+    if LOCAL_TTS:
         tts.tts_to_file(text=text, file_path="/media/olegg/sova/owl_239/tts_output.wav", speaker_wav=file_path, language=lang)
     else:
         tts = gTTS(text, lang=lang)
-        tts.save("/media/olegg/sova/owl_239/tts_output.mp3")
+        # Сохраняем сначала во временный MP3, затем конвертируем в WAV нужной частоты
+        tts.save("/media/olegg/sova/owl_239/temp_output.mp3")
         sound = AudioSegment.from_mp3("/media/olegg/sova/owl_239/temp_output.mp3")
         sound.export("/media/olegg/sova/owl_239/temp_output.wav", format="wav")
 
@@ -209,10 +211,10 @@ def _play_sound_with_gesture_interrupt(sound_path: str, cap):
             prediction = gesture_model.predict([landmarks])
             classID = np.argmax(prediction)
             className = classNames[classID]
-            # if className == 'thumbs down':
-            #     pygame.mixer.stop()
-            #     ser.write("2".encode('ascii'))
-            #     break
+            if className == 'thumbs down':
+                pygame.mixer.stop()
+                ser.write("2".encode('ascii'))
+                break
         cv2.putText(frame, className, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
         cv2.imshow("owl GUI", frame)
         cv2.waitKey(1)
@@ -230,34 +232,29 @@ def answer(pipe, universalQA, cap, tts):
         audio_path = record_audio(device_name="sysdefault")
         ser.write("2".encode('ascii'))
         
-        result = pipe(audio_path)
+        result = pipe(audio_path, generate_kwargs={"language": "russian"})
         question = result['text']
 
         torch.cuda.empty_cache()
         print(question)
         
-        do_tts(tts, f'Вы спросили {question}?', lang="ru")
-       
-        
-        p = pygame.mixer.Sound("/media/olegg/sova/owl_239/tts_output.wav")
-        p.play()
-        while pygame.mixer.get_busy():
-            time.sleep(0.1)
-
-        
-        p = pygame.mixer.Sound('/media/olegg/sova/owl_239/UWU.wav')
-        p.play()
-        while pygame.mixer.get_busy():
-            time.sleep(0.1)
-        ser.write("2".encode('ascii'))
-        
-        audio_path = record_audio(device_name="sysdefault")
-        result = pipe(audio_path)
-        user_response = result['text']
-        print(user_response)
-        
-        if contains_negative_words(user_response.replace(".", "")):  # If sentiment is negative or neutral
-            return
+        if CONFIRM_QUESTION:
+            do_tts(tts, f'Вы спросили {question}?', lang="ru")
+            p = pygame.mixer.Sound("/media/olegg/sova/owl_239/tts_output.wav")
+            p.play()
+            while pygame.mixer.get_busy():
+                time.sleep(0.1)
+            p = pygame.mixer.Sound('/media/olegg/sova/owl_239/UWU.wav')
+            p.play()
+            while pygame.mixer.get_busy():
+                time.sleep(0.1)
+            ser.write("2".encode('ascii'))
+            audio_path = record_audio(device_name="sysdefault")
+            result = pipe(audio_path, generate_kwargs={"language": "russian"})
+            user_response = result['text']
+            print(user_response)
+            if contains_negative_words(user_response.replace(".", "")):
+                return
         
         ra = random.randint(1, 4)
         p = pygame.mixer.Sound(f'/media/olegg/sova/owl_239/wait{ra}.mp3')
@@ -268,7 +265,7 @@ def answer(pipe, universalQA, cap, tts):
             context += chunk.page_content
         
         messages = [
-            {"role": "system", "content": f"Ты робот-сова из города санкт-петербург. Ты отвечаешь на вопросы по тексту \n{context}\n. Если не знаешь - не пытайся угадать, признайся что не знаешь."},
+            {"role": "system", "content": f"Ты робот-сова женского рода из города санкт-петербур, лицея 239. Ты отвечаешь на вопросы по тексту \n{context}\n. Если не знаешь - не пытайся угадать, признайся что не знаешь."},
             {"role": "user", "content": "Кто директор 239?"},
             {"role": "assistant", "content": "Максим Яковлевич Пратусевич"},       
             {"role": "user", "content": "Кто тебя сделал?"},
