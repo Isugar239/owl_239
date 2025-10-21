@@ -26,7 +26,7 @@ from TTS.api import TTS
 LOCAL_TTS = False
 USE_MULTILANGUAL = True
 CLEAR_CACHE = True
-CONFIRM_QUESTION = False
+CONFIRM_QUESTION = True
 EMBEDDING_MODEL_NAME = "ai-forever/sbert_large_nlu_ru"
 last_digit = -1
 embedding_model = HuggingFaceEmbeddings(
@@ -133,6 +133,7 @@ generation_args = {
 file_path="/media/olegg/sova/owl_239/speaker.wav"
 
 def do_tts(tts, text, lang):
+    global LOCAL_TTS
     if LOCAL_TTS:
         tts.tts_to_file(text=text, file_path="/media/olegg/sova/owl_239/tts_output.wav", speaker_wav=file_path, language=lang)
     else:
@@ -181,7 +182,7 @@ def init():
     return pipe, universalQA, tts
 
 
-def _play_sound(sound_path: str):
+def _play_sound(sound_path: str, obj):
     p = pygame.mixer.Sound(sound_path)
     p.play()
     while pygame.mixer.get_busy():
@@ -257,6 +258,9 @@ def answer(pipe, universalQA, cap, tts):
                 return
         
         ra = random.randint(1, 4)
+        global LOCAL_TTS
+        if LOCAL_TTS:
+            ra+=4
         p = pygame.mixer.Sound(f'/media/olegg/sova/owl_239/wait{ra}.mp3')
         p.play()
         similar_chunks = KNOWLEDGE_VECTOR_DATABASE.similarity_search_with_score(question, k=3)
@@ -269,7 +273,8 @@ def answer(pipe, universalQA, cap, tts):
             {"role": "user", "content": "Кто директор 239?"},
             {"role": "assistant", "content": "Максим Яковлевич Пратусевич"},       
             {"role": "user", "content": "Кто тебя сделал?"},
-            {"role": "assistant", "content": "Захаров Иван"},       
+            {"role": "assistant", "content": "Захаров Иван"},     
+            
         ]
         messages.append({"role": "user", "content": f'{question}'})
         answerQA = universalQA(messages, **generation_args)
@@ -286,7 +291,7 @@ def answer(pipe, universalQA, cap, tts):
         
         pygame.mixer.stop()
         print("play")
-        _play_sound_with_gesture_interrupt("/media/olegg/sova/owl_239/tts_output.wav", cap)
+        _play_sound("/media/olegg/sova/owl_239/tts_output.wav", cap)
         
         p = pygame.mixer.Sound('/media/olegg/sova/owl_239/UWU.wav')
         p.play()
@@ -311,22 +316,25 @@ def check_face_stable(face_detected, face_start_time, stable_duration=0.2):
 
 
 def main(): 
-    global last_digit 
-    pipe, universalQA, tts = init()
+        global last_digit 
+        pipe, universalQA, tts = init()
+        
+        ser.write("6".encode('ascii'))
+        input()
+        p = pygame.mixer.Sound(f'/media/olegg/sova/owl_239/start.mp3')
+        p.play()
+        while pygame.mixer.get_busy():
+            time.sleep(0.1)
+        lasttime = time.perf_counter()
+        lastface = time.perf_counter()
+        
+        face_start_time = None
+        face_stable = False
     
-    ser.write("6".encode('ascii'))
-    input()
-    
-    lasttime = time.perf_counter()
-    lastface = time.perf_counter()
-    
-    face_start_time = None
-    face_stable = False
-    
-    cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 800)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 600)
-    try:
+        cap = cv2.VideoCapture(0)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 800)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 600)
+
         with mp_face_detection.FaceDetection(min_detection_confidence=0.96) as face_detection:
             while True:
                 _, frame = cap.read()
@@ -419,9 +427,8 @@ def main():
 
                 if cv2.waitKey(1) == ord('q'):
                     break
-    except Exception as e:
-        print(f"Main loop error: {e}")
-    finally:
+  
+
         cap.release()
         cv2.destroyAllWindows()
 
