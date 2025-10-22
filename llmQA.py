@@ -321,8 +321,6 @@ def main():
         
         ser.write("6".encode('ascii'))
         input()
-        p = pygame.mixer.Sound(f'/media/olegg/sova/owl_239/start.mp3')
-        p.play()
         while pygame.mixer.get_busy():
             time.sleep(0.1)
         lasttime = time.perf_counter()
