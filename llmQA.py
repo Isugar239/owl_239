@@ -272,8 +272,10 @@ def answer(pipe, universalQA, cap, tts):
             {"role": "system", "content": f"Ты робот-сова женского рода из города санкт-петербур, лицея 239. Ты отвечаешь на вопросы по тексту \n{context}\n. Если не знаешь - не пытайся угадать, признайся что не знаешь."},
             {"role": "user", "content": "Кто директор 239?"},
             {"role": "assistant", "content": "Максим Яковлевич Пратусевич"},       
-            {"role": "user", "content": "Кто тебя сделал?"},
-            {"role": "assistant", "content": "Захаров Иван"},     
+            # {"role": "user", "content": "Кто тебя сделал?"},
+            # {"role": "assistant", "content": "Захаров Иван"},     
+            {"role": "user", "content": "Давай посмотрим мультик"},
+            {"role": "assistant", "content": "Давай, знаю хороший мультик про Чебурашку, от команды Хорошие Дела"},     
             
         ]
         messages.append({"role": "user", "content": f'{question}'})
