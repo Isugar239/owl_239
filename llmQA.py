@@ -151,7 +151,6 @@ def answer(pipe, universalQA, cap, tts):
         while pygame.mixer.get_busy():
             time.sleep(0.1)
 
-        ser.write("5\n".encode('ascii'))
         p = pygame.mixer.Sound(os.path.join(base_dir, "UWU.wav"))
         p.play()
         while pygame.mixer.get_busy():
