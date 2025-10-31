@@ -1,8 +1,8 @@
-from TTS.api import TTS
-tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2", gpu=True)
-
-# generate speech by cloning a voice using default settings
-tts.tts_to_file(text="It took me quite a long time to develop a voice, and now that I have it I'm not going to be silent.",
-                file_path="output.wav",
-                speaker_wav="speaker.wav",
-                language="en")
+import torch
+from transformers import AutoModelForSpeechSeq2Seq
+device = "cuda:0"
+model_id = "openai/whisper-large-v3"
+modelSR = AutoModelForSpeechSeq2Seq.from_pretrained(
+        model_id, torch_dtype=torch.float16, low_cpu_mem_usage=False, use_safetensors=True
+    )
+modelSR.to(device)

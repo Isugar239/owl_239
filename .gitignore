@@ -1,2 +1,8 @@
 audio.mp3
 data/
+temp_output.mp3
+temp_output.wav
+
+wait*
+tts_output.mp3
+tts_output.wav

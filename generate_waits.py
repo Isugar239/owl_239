@@ -13,15 +13,17 @@ def generate_wait_prompts(phrases: List[str]) -> None:
         # tts.tts_to_file(text=phrase, file_path=out_mp3, speaker_wav="speaker.wav", language="ru")
         tts = gTTS(phrase, lang="ru")
         # Сохраняем сначала во временный MP3, затем конвертируем в WAV нужной частоты
-        tts.save("/media/olegg/sova/owl_239/start.mp3")
-        sound = AudioSegment.from_mp3("/media/olegg/sova/owl_239/start.mp3")
-        sound.export("/media/olegg/sova/owl_239/start.wav", format="wav")
+        tts.save("./start.mp3")
+        sound = AudioSegment.from_mp3("./start.mp3")
+        sound.export(f"./start{idx}.wav", format="wav")
 
         
 
 if __name__ == "__main__":
     phrases_ru = [
-        "Здравствуйте, я сова -  интерактивный робот помощник. Надеюсь вам понравилось выступление моей подруги вороны, а сейчас можете задать мне вопросы."
+        "Здравствуйте, я сова — интерактивный робот-помощник, мои создатели: Иван, екатерина и данчик сделали меня умной, красивой  и эмоциональной." ,
+        "Я создана чтобы отвечать на вопросы.",
+        "Я запомнила все ваши вопросы, если хотите узнать ответы то жду вас на моем стенде."
     ]
     generate_wait_prompts(phrases_ru)
 
